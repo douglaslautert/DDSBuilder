@@ -6,6 +6,7 @@ import google.generativeai as genai
 import os
 import time
 from openai import OpenAI
+from llamaapi import LlamaAPI
 
 # Safety configuration for Gemini
 safe = [
@@ -79,6 +80,88 @@ def categorize_vulnerability_gpt(description):
     else:
                     print(f"Could not find JSON in Chat-GPT response: {text_part}")
                     return [("UNKNOWN", "Could not find JSON in Gemini response", "Unknown", "Unknown", "Unknown")]
+
+
+# categorize vulnerabilite with chat-GPT
+def categorize_vulnerability_llama(description):
+    """Categorizes the vulnerability and extracts cause, impact, and vendor using Chat GPT."""
+    client = OpenAI(
+    api_key = os.environ["CHAT_API_KEY"]
+    )
+    llama = LlamaAPI(os.environ["LLAMA_API_KEY"])
+    prompt = f"""
+    You are a security expert.
+    Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
+    Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+
+    Description:
+    ```
+    {description}
+    ```
+
+    Output:
+    ```json
+    {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
+    ```
+    """
+    time.sleep(1)
+
+    # Define your API request
+    api_request_json = {
+    "messages": [
+        {"role": "user", "content": prompt},
+    ],
+    "functions": [
+        {
+            "name": "get_current_weather",
+            "description": "Get the current weather in a given location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    },
+                    "days": {
+                        "type": "number",
+                        "description": "for how many days ahead you wants the forecast",
+                    },
+                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                },
+            },
+            "required": ["location", "days"],
+        }
+    ],
+    "stream": False,
+    "function_call": "get_current_weather",
+    }
+
+    # Make your request and handle the response
+    response = llama.run(api_request_json)
+    print(json.dumps(response.json(), indent=2))
+
+    text_part = json.dumps(response.json(), indent=2)
+
+    # Extrair o JSON usando expressão regular
+    match = re.search(r'``[`json\n(.*?)\n`](command:_github.copilot.openSymbolFromReferences?%5B%22%22%2C%5B%7B%22uri%22%3A%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2Fd%3A%2FMESTRADO%2FDDS%2FSCRAP_DDS%2Fscrap_generate_dataset.py%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%2C%22pos%22%3A%7B%22line%22%3A2%2C%22character%22%3A7%7D%7D%5D%2C%224136289f-5814-4b75-9d6f-56e9b5bfd10d%22%5D "Go to definition")``', text_part, re.DOTALL)
+    if match:
+                    json_str = match.group(1)
+                    
+                    try:
+                        result = json.loads(json_str, strict=False)
+                        cwe_category = result.get('cwe_category', 'Unknown')
+                        explanation = result.get('explanation', 'Could not categorize vulnerability')
+                        vendor = result.get('vendor', 'Unknown')
+                        cause = result.get('cause', 'Unknown')
+                        impact = result.get('impact', 'Unknown')
+                        return [(cwe_category, explanation, vendor, cause, impact)]
+                    except json.JSONDecodeError:
+                        print(f"Error parsing JSON from Chat-GPT response: {json_str}")
+                        return [("UNKNOWN", "Error categorizing vulnerability", "Unknown", "Unknown", "Unknown")]
+    else:
+                    print(f"Could not find JSON in Chat-GPT response: {text_part}")
+                    return [("UNKNOWN", "Could not find JSON in Gemini response", "Unknown", "Unknown", "Unknown")]
+
 
 # categorize vulnerabilite with gemini
 def categorize_vulnerability_gemini(description):
