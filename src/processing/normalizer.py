@@ -27,12 +27,33 @@ def filtro_vulner(vulnerability, description_without_punct, truncated_descriptio
         'severity': vulnerability.get('_source', {}).get('cvss', {}).get('severity'), # vulners severity is on severity
         'source': 'Vulners'
     }
+def filter_vulnerabilities(vulnerabilities, id=None, title=None, description=None, vendor=None, published=None, cvss_score=None, severity=None, source=None):
+    def matches_criteria(cve, id, title, description, vendor, published, cvss_score, severity, source):
+        cve_id = cve.get('id')
+        cve_description = next((desc['value'] for desc in cve.get('descriptions', []) if desc['lang'] == 'en'), '')
+        cve_published = cve.get('published')
+        cve_source = cve.get('sourceIdentifier')  # Aqui está o erro, vamos corrigir para cve.get('source')
+        cve_metrics = cve.get('metrics', {})
+        cve_cvss_score = next((metric['cvssData']['baseScore'] for metric in cve_metrics.get('cvssMetricV31', [])), None)
+        cve_severity = next((metric['cvssData']['baseSeverity'] for metric in cve_metrics.get('cvssMetricV31', [])), None)
+        cve_vendor = next((config['cpeMatch'][0]['criteria'].split(':')[3] for config in cve.get('configurations', [{}])[0].get('nodes', [{}])), '')
 
-# extract from vulners.com vulnerabilities 
+        return (not id or id == cve_id) and \
+               (not title or title in cve_description) and \
+               (not description or description in cve_description) and \
+               (not vendor or vendor == cve_vendor) and \
+               (not published or published == cve_published) and \
+               (not cvss_score or cvss_score == cve_cvss_score) and \
+               (not severity or severity == cve_severity) and \
+               (not source or source == cve_source)
+
+    return [vuln['cve'] for vuln in vulnerabilities if matches_criteria(vuln['cve'], id, title, description, vendor, published, cvss_score, severity, source)]
+
 def extract_vulners_data(vulnerability):
     """Extracts relevant information from a Vulners vulnerability entry, handling encoding."""
-    description = vulnerability.get('_source', {}).get('description')
-    description = description.encode('utf-8', errors='replace').decode('utf-8')
+    description = vulnerability.get('_source', {}).get('description', '')
+    if description:
+        description = description.encode('utf-8', errors='replace').decode('utf-8')
     max_length = 500
     if len(description) > max_length:
         key_phrases = ["allows", "to cause", "via", "in", "component"]
@@ -48,35 +69,49 @@ def extract_vulners_data(vulnerability):
 
     description_without_punct = re.sub(r'[^\w\s]', '', truncated_description).lower()
     
-    return filtro_vulner(vulnerability, description_without_punct, truncated_description) 
+    return filtro_vulner(vulnerability, description_without_punct, truncated_description)
 
 
 
-def normalizer():
+def fetch_vulnerabilities_vulners():
+    print(f"Fetching vulnerabilities for vulners...")
     all_vulnerabilities = []
     search_query = ' OR '.join([f'"{vendor}"' for vendor in VENDORS]) + ' "data distribution service"'
     skip = 0
+
     while True:
         data = nvd_extractor.get_vulners_data(search_query, FIELDS, skip)
-        # Verificar se 'data' não é None
-        if data is not None:
-            new_vulnerabilities = [extract_vulners_data(cve) for cve in data['data']['search']]
-            all_vulnerabilities.extend(new_vulnerabilities)
-            total = data['data']['total']
-            skip += len(data['data']['search'])
-            if skip >= total:
-                break
-        else:
+        if data is None:
             print(f"Erro: A API do Vulners retornou None para a consulta: {search_query}")
             break
-    
+
+        new_vulnerabilities = [extract_vulners_data(cve) for cve in data['data']['search']]
+        all_vulnerabilities.extend(new_vulnerabilities)
+        total = data['data']['total']
+        skip += len(data['data']['search'])
+
+        if skip >= total:
+            break
+
+    return all_vulnerabilities
+
+def fetch_vulnerabilities_nvd():
+    all_vulnerabilities = []
     for vendor in VENDORS:
         print(f"Fetching vulnerabilities for {vendor}...")
         vulnerabilities = nvd_extractor.fetch_all_vulnerabilities(vendor)
-        all_vulnerabilities.extend(vulnerabilities)
+        if vulnerabilities:
+            filtered_vulnerabilities = [extract_vulners_data(cve) for cve in vulnerabilities]
+            all_vulnerabilities.extend(filtered_vulnerabilities)
+    return all_vulnerabilities      
+
+def normalizer():
+   
+    all_vulnerabilities = []
+    all_vulnerabilities = fetch_vulnerabilities_vulners()
+    all_vulnerabilities.extend(fetch_vulnerabilities_nvd())
     
-    
-    choice = int(input("Digit 1 for gemini or 2 for chatGPT or 3 for llama: "))
+    choice = int(input("Digit 1 for gemini or 2 for chatGPT or 03 for llama: "))
     while(choice < 1 or choice > 3):
         choice = int(input("Digit 1 for gemini or 2 for chatGPT or 3 for llama: "))
     
