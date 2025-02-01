@@ -106,19 +106,32 @@ def fetch_vulnerabilities_nvd():
     return all_vulnerabilities      
 
 def normalizer():
-   
+    tam = 30
+    opcoes = {
+        "1": "gemini",
+        "2": "chatGPT",
+        "3": "llama",
+        "0": "sair"
+    }
     all_vulnerabilities = []
     all_vulnerabilities = fetch_vulnerabilities_vulners()
     all_vulnerabilities.extend(fetch_vulnerabilities_nvd())
-    
-    choice = int(input("Digit 1 for gemini or 2 for chatGPT or 03 for llama: "))
-    while(choice < 1 or choice > 3):
-        choice = int(input("Digit 1 for gemini or 2 for chatGPT or 3 for llama: "))
-    
-    if(choice == 1):
-        csv_exporter.write_to_csv_from_gemini(all_vulnerabilities, CSV_OUTPUT_FILE)
-    else: 
-        if(choice == 2):
+    while True:
+        print(f"+{'-'*tam}+")
+        print(f"|{'Menu':^{tam}}|")
+        print(f"+{'-'*tam}+")
+        for k, v in opcoes.items():
+            print(f"|{f'{k} - {v}':{tam}}|")
+        print(f"+{'-'*tam}+")
+        op = input()
+        if op not in opcoes:
+            print("Opção inválida")
+            continue
+        if(op == "0"):
+            break    
+        if(op == "1"):
+            csv_exporter.write_to_csv_from_gemini(all_vulnerabilities, CSV_OUTPUT_FILE)
+        if(op == "2"):
             csv_exporter.write_to_csv_from_gpt(all_vulnerabilities, CSV_OUTPUT_FILE)
-        else:
+        if(op == "3"):
             csv_exporter.write_to_csv_from_llama(all_vulnerabilities, CSV_OUTPUT_FILE)
