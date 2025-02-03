@@ -116,4 +116,4 @@ dmypy.json
 .vscode/
 
 # Data files
-dataset/dds_vulnerabilities_AI.csv
+dataset/*
