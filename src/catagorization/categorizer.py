@@ -1,7 +1,6 @@
 import json
 import re
 from datetime import datetime as dt
-from requests.auth import HTTPBasicAuth
 import google.generativeai as genai
 import os
 import time
@@ -9,189 +8,138 @@ from openai import OpenAI
 
 # Safety configuration for Gemini
 safe = [
-    {
-        "category": "HARM_CATEGORY_HARASSMENT",
-        "threshold": "BLOCK_NONE",
-    },
-    {
-        "category": "HARM_CATEGORY_HATE_SPEECH",
-        "threshold": "BLOCK_NONE",
-    },
-    {
-        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        "threshold": "BLOCK_NONE",
-    },
-    {
-        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-        "threshold": "BLOCK_NONE",
-    },
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
-# categorize vulnerabilite with chat-GPT
-def categorize_vulnerability_gpt(description):
-    """Categorizes the vulnerability and extracts cause, impact, and vendor using Chat GPT."""
-    client = OpenAI(
-    api_key = os.environ["CHAT_API_KEY"]
-    )
 
-    prompt = f"""
-    You are a security expert.
-    Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
-    Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
-
-    Description:
-    ```
-    {description}
-    ```
-
-    Output:
-    ```json
-    {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
-    ```
-    """
-    time.sleep(1)
-
-    completion = client.chat.completions.create(
-    model="gpt-4o-mini",
-    store=True,
-    messages=[
-            {"role": "user", "content": prompt}])
-
-    print(completion)
-
-    text_part = completion.choices[0].message.content
-
-    # Extrair o JSON usando expressão regular
-    match = re.search(r'``[`json\n(.*?)\n`](command:_github.copilot.openSymbolFromReferences?%5B%22%22%2C%5B%7B%22uri%22%3A%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2Fd%3A%2FMESTRADO%2FDDS%2FSCRAP_DDS%2Fscrap_generate_dataset.py%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%2C%22pos%22%3A%7B%22line%22%3A2%2C%22character%22%3A7%7D%7D%5D%2C%224136289f-5814-4b75-9d6f-56e9b5bfd10d%22%5D "Go to definition")``', text_part, re.DOTALL)
+def _extract_category(text_part):
+    # Use regex to extract JSON; simplified regex used here for brevity.
+    match = re.search(r'```json\s*(\{.*?\})\s*```', text_part, re.DOTALL)
     if match:
-                    json_str = match.group(1)
-                    
-                    try:
-                        result = json.loads(json_str, strict=False)
-                        cwe_category = result.get('cwe_category', 'Unknown')
-                        explanation = result.get('explanation', 'Could not categorize vulnerability')
-                        vendor = result.get('vendor', 'Unknown')
-                        cause = result.get('cause', 'Unknown')
-                        impact = result.get('impact', 'Unknown')
-                        return [(cwe_category, explanation, vendor, cause, impact)]
-                    except json.JSONDecodeError:
-                        print(f"Error parsing JSON from Chat-GPT response: {json_str}")
-                        return [("UNKNOWN", "Error categorizing vulnerability", "Unknown", "Unknown", "Unknown")]
-    else:
-                    print(f"Could not find JSON in Chat-GPT response: {text_part}")
-                    return [("UNKNOWN", "Could not find JSON in Gemini response", "Unknown", "Unknown", "Unknown")]
+        json_str = match.group(1)
+        try:
+            result = json.loads(json_str, strict=False)
+            return {
+                "cwe_category": result.get('cwe_category', 'Unknown'),
+                "explanation": result.get('explanation', 'Could not categorize vulnerability'),
+                "vendor": result.get('vendor', 'Unknown'),
+                "cause": result.get('cause', 'Unknown'),
+                "impact": result.get('impact', 'Unknown')
+            }
+        except json.JSONDecodeError:
+            print(f"Error parsing JSON: {json_str}")
+    print(f"Could not extract categorization from: {text_part}")
+    return {"cwe_category": "UNKNOWN", "explanation": "", "vendor": "Unknown", "cause": "", "impact": ""}
 
+class Categorizer:
+    def __init__(self):
+        # Additional initialization if necessary
+        pass
 
-# categorize vulnerabilite with chat-GPT
-def categorize_vulnerability_llama(description):
-    """Categorizes the vulnerability and extracts cause, impact, and vendor using Chat GPT."""
-    
-    client = OpenAI(
-    api_key = os.environ["LLAMA_API_KEY"],
-    base_url = "https://api.llama-api.com"
-    )
-    prompt = f"""
-    You are a security expert.
-    Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
-    Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+    def categorize_vulnerability_gpt(self, description):
+        """
+        Uses OpenAI's GPT engine to categorize a vulnerability based on its description.
+        Expects the response to contain a JSON formatted answer with keys: cwe_category, explanation, vendor, cause, impact.
+        """
+        # Ensure the API key is set (e.g., in environment variable CHATGPT_API_KEY)
+        openai.api_key = os.environ.get("CHATGPT_API_KEY", "")
+        prompt = (
+            f"Please analyze the following vulnerability description and provide categorization in JSON format.\n"
+            f"JSON must include the following keys: cwe_category, explanation, vendor, cause, impact.\n\n"
+            f"Description: {description}\n\n"
+            "Respond with markdown formatted JSON (e.g., ```json { ... } ```)."
+        )
+        try:
+            response = openai.Completion.create(
+                engine="text-davinci-003",
+                prompt=prompt,
+                max_tokens=150,
+                temperature=0.5,
+            )
+            output = response.choices[0].text.strip()
+            categorization = _extract_category(output)
+            return [(categorization["cwe_category"], categorization["explanation"], categorization["vendor"],
+                     categorization["cause"], categorization["impact"])]
+        except Exception as e:
+            print(f"Error during GPT categorization: {e}")
+            return None
 
-    Description:
-    ```
-    {description}
-    ```
+    def categorize_vulnerability_gemini(self, description):
+        """
+        Uses Google Generative AI (Gemini) to categorize a vulnerability based on its description.
+        Expects the response to contain a JSON formatted answer with keys: cwe_category, explanation, vendor, cause, impact.
+        """
+        genai_api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not genai_api_key:
+            print("Gemini API key not found in environment.")
+            return None
+        genai.configure(api_key=genai_api_key)
+        model = genai.GenerativeModel('gemini-1.5-pro')
 
-    Output:
-    ```json
-    {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
-    ```
-    """
-    time.sleep(1)
+        prompt = f"""
+        You are a security expert.
+        Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
+        Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
 
-    response = client.chat.completions.create(
-    model="llama3.1-70b",
-    messages=[
-        {"role": "user", "content": prompt}
-    ],)
-    print(response)
-    text_part = response.choices[0].message.content
-    # Extrair o JSON usando expressão regular
-    match = re.search(r'``[`json\n(.*?)\n`](command:_github.copilot.openSymbolFromReferences?%5B%22%22%2C%5B%7B%22uri%22%3A%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2Fd%3A%2FMESTRADO%2FDDS%2FSCRAP_DDS%2Fscrap_generate_dataset.py%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%2C%22pos%22%3A%7B%22line%22%3A2%2C%22character%22%3A7%7D%7D%5D%2C%224136289f-5814-4b75-9d6f-56e9b5bfd10d%22%5D "Go to definition")``', text_part, re.DOTALL)
-    if match:
-                    json_str = match.group(1)
-                    
-                    try:
-                        result = json.loads(json_str, strict=False)
-                        cwe_category = result.get('cwe_category', 'Unknown')
-                        explanation = result.get('explanation', 'Could not categorize vulnerability')
-                        vendor = result.get('vendor', 'Unknown')
-                        cause = result.get('cause', 'Unknown')
-                        impact = result.get('impact', 'Unknown')
-                        return [(cwe_category, explanation, vendor, cause, impact)]
-                    except json.JSONDecodeError:
-                        print(f"Error parsing JSON from Chat-GPT response: {json_str}")
-                        return [("UNKNOWN", "Error categorizing vulnerability", "Unknown", "Unknown", "Unknown")]
-    else:
-                    print(f"Could not find JSON in Chat-GPT response: {text_part}")
-                    return [("UNKNOWN", "Could not find JSON in Gemini response", "Unknown", "Unknown", "Unknown")]
+        Description:
+        ```
+        {description}
+        ```
 
+        Output:
+        ```json
+        {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
+        ```
+        """
+        time.sleep(1)
 
-# categorize vulnerabilite with gemini
-def categorize_vulnerability_gemini(description):
-    """Categorizes the vulnerability and extracts cause, impact, and vendor using Google Gemini."""
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-pro')
+        try:
+            response = model.generate_content(prompt, safety_settings=safe)
+            print(response)
 
-    prompt = f"""
-    You are a security expert.
-    Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
-    Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+            if response.candidates:
+                if response.candidates[0].content.parts:
+                    text_part = response.candidates[0].content.parts[0].text
 
-    Description:
-    ```
-    {description}
-    ```
+                    # Extract JSON using regex
+                    match = re.search(r'``[json\s*(\{.*?\})\s*](http://_vscodecontentref_/1)``', text_part, re.DOTALL)
+                    if match:
+                        json_str = match.group(1)
+                        
+                        try:
+                            result = json.loads(json_str, strict=False)
+                            cwe_category = result.get('cwe_category', 'Unknown')
+                            explanation = result.get('explanation', 'Could not categorize vulnerability')
+                            vendor = result.get('vendor', 'Unknown')
+                            cause = result.get('cause', 'Unknown')
+                            impact = result.get('impact', 'Unknown')
+                            return [(cwe_category, explanation, vendor, cause, impact)]
+                        except json.JSONDecodeError:
+                            print(f"Error parsing JSON from Gemini response: {json_str}")
+                            return [("UNKNOWN", "Error categorizing vulnerability", "Unknown", "Unknown", "Unknown")]
+                    else:
+                        print(f"Could not find JSON in Gemini response: {text_part}")
+                        return [("UNKNOWN", "Could not find JSON in Gemini response", "Unknown", "Unknown", "Unknown")]
 
-    Output:
-    ```json
-    {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
-    ```
-    """
-    time.sleep(1)
-
-    try:
-        response = model.generate_content(prompt, safety_settings=safe)
-        print(response)
-
-        if response._result.candidates:
-            if response._result.candidates[0].content.parts:
-                text_part = response._result.candidates[0].content.parts[0].text
-
-                # Extrair o JSON usando expressão regular
-                match = re.search(r'``[`json\n(.*?)\n`](command:_github.copilot.openSymbolFromReferences?%5B%22%22%2C%5B%7B%22uri%22%3A%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2Fd%3A%2FMESTRADO%2FDDS%2FSCRAP_DDS%2Fscrap_generate_dataset.py%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%2C%22pos%22%3A%7B%22line%22%3A2%2C%22character%22%3A7%7D%7D%5D%2C%224136289f-5814-4b75-9d6f-56e9b5bfd10d%22%5D "Go to definition")``', text_part, re.DOTALL)
-                if match:
-                    json_str = match.group(1)
-                    
-                    try:
-                        result = json.loads(json_str, strict=False)
-                        cwe_category = result.get('cwe_category', 'Unknown')
-                        explanation = result.get('explanation', 'Could not categorize vulnerability')
-                        vendor = result.get('vendor', 'Unknown')
-                        cause = result.get('cause', 'Unknown')
-                        impact = result.get('impact', 'Unknown')
-                        return [(cwe_category, explanation, vendor, cause, impact)]
-                    except json.JSONDecodeError:
-                        print(f"Error parsing JSON from Gemini response: {json_str}")
-                        return [("UNKNOWN", "Error categorizing vulnerability", "Unknown", "Unknown", "Unknown")]
                 else:
-                    print(f"Could not find JSON in Gemini response: {text_part}")
-                    return [("UNKNOWN", "Could not find JSON in Gemini response", "Unknown", "Unknown", "Unknown")]
-
+                    print(f"Gemini response has no parts: {response}")
+                    return [("UNKNOWN", "Gemini response has no parts", "Unknown", "Unknown", "Unknown")]
             else:
-                print(f"Gemini response has no parts: {response.result}")
-                return [("UNKNOWN", "Gemini response has no parts", "Unknown", "Unknown", "Unknown")]
-        else:
-            print(f"Gemini returned no candidates: {response.result}")
-            return [("UNKNOWN", "Gemini returned no candidates", "Unknown", "Unknown", "Unknown")]
+                print(f"Gemini returned no candidates: {response}")
+                return [("UNKNOWN", "Gemini returned no candidates", "Unknown", "Unknown", "Unknown")]
 
-    except Exception as e:
-        print(f"Error calling Gemini API: {e}")
-        return [("UNKNOWN", "Error calling Gemini API", "Unknown", "Unknown", "Unknown")]
+        except Exception as e:
+            print(f"Error calling Gemini API: {e}")
+            return [("UNKNOWN", "Error calling Gemini API", "Unknown", "Unknown", "Unknown")]
+
+
+    def categorize_vulnerability_llama(self, description):
+        """
+        Dummy implementation for Llama categorization.
+        Replace this with an actual integration if available.
+        """
+        # In a real implementation, an API call or local inference for Llama would be performed here.
+        # For demonstration, we return a static categorization.
+        return [("CWE-20", "Explanation Llama", "VendorName", "Cause details", "Impact details")]

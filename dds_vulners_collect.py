@@ -262,27 +262,3 @@ def write_to_csv(data, filename):
                             writer.writerow(item)
                             existing_vulnerabilities[item['title']] = item['id'] 
 
-def main():
-    """Orchestrates the vulnerability search and data extraction process."""
-    all_vulnerabilities = []
-    search_query = ' OR '.join([f'"{vendor}"' for vendor in VENDORS]) + ' "data distribution service"'
-    skip = 0
-    while True:
-        data = get_vulners_data(search_query, FIELDS, skip)
-        # Verificar se 'data' não é None
-        if data is not None:
-            new_vulnerabilities = [extract_vulners_data(cve) for cve in data['data']['search']]
-            all_vulnerabilities.extend(new_vulnerabilities)
-            total = data['data']['total']
-            skip += len(data['data']['search'])
-            if skip >= total:
-                break
-        else:
-            print(f"Erro: A API do Vulners retornou None para a consulta: {search_query}")
-            break
-
-    write_to_csv(all_vulnerabilities, CSV_OUTPUT_FILE)
-    print(f"Vulnerability data saved to {CSV_OUTPUT_FILE}")
-
-if __name__ == "__main__":
-    main()
