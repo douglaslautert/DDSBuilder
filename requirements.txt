@@ -5,3 +5,4 @@ re
 os
 google-generativeai
 time
+openai
