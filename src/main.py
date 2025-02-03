@@ -48,12 +48,13 @@ def main():
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
     parser.add_argument('--llama-key', help="API key for Llama")
-    parser.add_argument('--vulners-key', required=True, help="API key for Vulners")
+    parser.add_argument('--vulners-key', help="API key for Vulners")
     parser.add_argument('--export-format', choices=['csv', 'json'], default='csv', help="Export format")
     parser.add_argument('--output-file', default="dataset/dds_vulnerabilities_AI.csv", help="Output file name")
     args = parser.parse_args()
 
-    os.environ["VULNERS_API_KEY"] = args.vulners_key
+    if args.vulners_key:
+        os.environ["VULNERS_API_KEY"] = args.vulners_key
     os.environ["CSV_OUTPUT_FILE"] = args.output_file
 
     if args.source == 'gemini':

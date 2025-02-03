@@ -5,6 +5,7 @@ import google.generativeai as genai
 import os
 import time
 from openai import OpenAI
+from transformers import pipeline
 
 # Safety configuration for Gemini
 safe = [
@@ -40,31 +41,65 @@ class Categorizer:
 
     def categorize_vulnerability_gpt(self, description):
         """
-        Uses OpenAI's GPT engine to categorize a vulnerability based on its description.
-        Expects the response to contain a JSON formatted answer with keys: cwe_category, explanation, vendor, cause, impact.
+        Categorizes the vulnerability and extracts cause, impact, and vendor using Chat GPT.
         """
-        # Ensure the API key is set (e.g., in environment variable CHATGPT_API_KEY)
-        openai.api_key = os.environ.get("CHATGPT_API_KEY", "")
-        prompt = (
-            f"Please analyze the following vulnerability description and provide categorization in JSON format.\n"
-            f"JSON must include the following keys: cwe_category, explanation, vendor, cause, impact.\n\n"
-            f"Description: {description}\n\n"
-            "Respond with markdown formatted JSON (e.g., ```json { ... } ```)."
+        client = OpenAI(
+            api_key=os.environ["CHATGPT_API_KEY"]
         )
+
+        prompt = f"""
+        You are a security expert.
+        Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
+        Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+
+        Description:
+        ```
+        {description}
+        ```
+
+        Output:
+        ```json
+        {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
+        ```
+        """
+        time.sleep(1)
+
         try:
-            response = openai.Completion.create(
-                engine="text-davinci-003",
-                prompt=prompt,
-                max_tokens=150,
-                temperature=0.5,
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                store=True,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
             )
-            output = response.choices[0].text.strip()
-            categorization = _extract_category(output)
-            return [(categorization["cwe_category"], categorization["explanation"], categorization["vendor"],
-                     categorization["cause"], categorization["impact"])]
+            print(completion)
+
+            text_part = completion.choices[0].message.content
+
+            # Extract JSON using regex
+            match = re.search(r'``[json\s*(\{.*?\})\s*](http://_vscodecontentref_/1)``', text_part, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+                
+                try:
+                    result = json.loads(json_str, strict=False)
+                    cwe_category = result.get('cwe_category', 'Unknown')
+                    explanation = result.get('explanation', 'Could not categorize vulnerability')
+                    vendor = result.get('vendor', 'Unknown')
+                    cause = result.get('cause', 'Unknown')
+                    impact = result.get('impact', 'Unknown')
+                    return [(cwe_category, explanation, vendor, cause, impact)]
+                except json.JSONDecodeError:
+                    print(f"Error parsing JSON from Chat-GPT response: {json_str}")
+                    return [("UNKNOWN", "Error categorizing vulnerability", "Unknown", "Unknown", "Unknown")]
+            else:
+                print(f"Could not find JSON in Chat-GPT response: {text_part}")
+                return [("UNKNOWN", "Could not find JSON in Chat-GPT response", "Unknown", "Unknown", "Unknown")]
+
         except Exception as e:
-            print(f"Error during GPT categorization: {e}")
-            return None
+            print(f"Error calling Chat-GPT API: {e}")
+            return [("UNKNOWN", "Error calling Chat-GPT API", "Unknown", "Unknown", "Unknown")]
+
 
     def categorize_vulnerability_gemini(self, description):
         """
@@ -137,9 +172,66 @@ class Categorizer:
 
     def categorize_vulnerability_llama(self, description):
         """
-        Dummy implementation for Llama categorization.
-        Replace this with an actual integration if available.
+        Uses the Llama API to categorize a vulnerability based on its description.
+        Expects the response to contain a JSON formatted answer with keys: cwe_category, explanation, vendor, cause, impact.
         """
-        # In a real implementation, an API call or local inference for Llama would be performed here.
-        # For demonstration, we return a static categorization.
-        return [("CWE-20", "Explanation Llama", "VendorName", "Cause details", "Impact details")]
+        client = OpenAI(
+            api_key=os.environ["LLAMA_API_KEY"],
+            base_url="https://api.llama-api.com"
+        )
+        prompt = f"""
+        You are a security expert.
+        Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
+        Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+
+        Description:
+        ```
+        {description}
+        ```
+
+        Output:
+        ```json
+        {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
+        ```
+        """
+        time.sleep(1)
+
+        try:
+            response = client.chat.completions.create(
+                model="llama3.1-70b",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+            )
+            print(response)
+            text_part = response.choices[0].message.content
+
+            # Extract JSON using regex
+            match = re.search(r'``[json\s*(\{.*?\})\s*](http://_vscodecontentref_/2)``', text_part, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+                
+                try:
+                    result = json.loads(json_str, strict=False)
+                    cwe_category = result.get('cwe_category', 'Unknown')
+                    explanation = result.get('explanation', 'Could not categorize vulnerability')
+                    vendor = result.get('vendor', 'Unknown')
+                    cause = result.get('cause', 'Unknown')
+                    impact = result.get('impact', 'Unknown')
+                    return [(cwe_category, explanation, vendor, cause, impact)]
+                except json.JSONDecodeError:
+                    print(f"Error parsing JSON from Llama response: {json_str}")
+                    return [("UNKNOWN", "Error categorizing vulnerability", "Unknown", "Unknown", "Unknown")]
+            else:
+                print(f"Could not find JSON in Llama response: {text_part}")
+                return [("UNKNOWN", "Could not find JSON in Llama response", "Unknown", "Unknown", "Unknown")]
+
+        except Exception as e:
+            print(f"Error calling Llama API: {e}")
+            return [("UNKNOWN", "Error calling Llama API", "Unknown", "Unknown", "Unknown")]
+
+    def categorize_vulnerability_default(self, description):
+        """
+        Default categorization method that does not use any LLM.
+        """
+        return [("UNKNOWN", "No categorization available", "Unknown", "Unknown", "Unknown")]
