@@ -6,3 +6,4 @@ os
 google-generativeai
 time
 openai
+transformers
