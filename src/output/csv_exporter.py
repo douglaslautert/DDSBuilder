@@ -38,7 +38,12 @@ class BasicCsvExporter:
             writer = csv.DictWriter(f, fieldnames=self.fieldnames, delimiter=';')
             writer.writerow(row)
             self.existing[row.get('title')] = row.get('id')
+    def export(self, data):
+        for item in data:
+            if item.get('title') not in self.existing:
+                self.write_row(item)
 
+                
 class GptCsvExporter(BasicCsvExporter):
     def export(self, data):
         for item in data:

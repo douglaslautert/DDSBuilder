@@ -230,6 +230,31 @@ class Categorizer:
             print(f"Error calling Llama API: {e}")
             return [("UNKNOWN", "Error calling Llama API", "Unknown", "Unknown", "Unknown")]
 
+    def _vote(self, items):
+        """
+        Simple voting mechanism to choose the most common item.
+        """
+        return max(set(items), key=items.count)
+
+    def categorize_vulnerability_combined(self, description):
+        """
+        Combines the results from Gemini, ChatGPT, and Llama to generate the best categorization.
+        """
+        results = []
+        results.append(self.categorize_vulnerability_gemini(description))
+        results.append(self.categorize_vulnerability_gpt(description))
+        results.append(self.categorize_vulnerability_llama(description))
+
+        # Combine results using a simple voting mechanism
+        combined_result = {
+            "cwe_category": self._vote([result[0][0] for result in results]),
+            "explanation": self._vote([result[0][1] for result in results]),
+            "vendor": self._vote([result[0][2] for result in results]),
+            "cause": self._vote([result[0][3] for result in results]),
+            "impact": self._vote([result[0][4] for result in results])
+        }
+        return [(combined_result["cwe_category"], combined_result["explanation"], combined_result["vendor"], combined_result["cause"], combined_result["impact"])]
+
     def categorize_vulnerability_default(self, description):
         """
         Default categorization method that does not use any LLM.

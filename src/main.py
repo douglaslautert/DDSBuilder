@@ -43,7 +43,7 @@ def main():
         description="DDS Builder: Build a vulnerability dataset for DDS systems using an AI provider for categorization",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama'], required=True,
+    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined'], required=True,
                         help="Select the AI provider for categorization")
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
@@ -57,12 +57,26 @@ def main():
         os.environ["VULNERS_API_KEY"] = args.vulners_key
     os.environ["CSV_OUTPUT_FILE"] = args.output_file
 
-    if args.source == 'gemini':
-        os.environ["GEMINI_API_KEY"] = args.gemini_key or ""
-    elif args.source == 'chatgpt':
-        os.environ["CHATGPT_API_KEY"] = args.chatgpt_key or ""
-    elif args.source == 'llama':
-        os.environ["LLAMA_API_KEY"] = args.llama_key or ""
+    if args.source in ['gemini', 'combined']:
+        if args.gemini_key:
+            os.environ["GEMINI_API_KEY"] = args.gemini_key
+        else:
+            print("Gemini API key not found in environment.")
+            return
+
+    if args.source in ['chatgpt', 'combined']:
+        if args.chatgpt_key:
+            os.environ["CHATGPT_API_KEY"] = args.chatgpt_key
+        else:
+            print("ChatGPT API key not found in environment.")
+            return
+
+    if args.source in ['llama', 'combined']:
+        if args.llama_key:
+            os.environ["LLAMA_API_KEY"] = args.llama_key
+        else:
+            print("Llama API key not found in environment.")
+            return
 
     print("Collecting vulnerability data...")
     vulnerabilities = collect_data()
@@ -88,6 +102,8 @@ def main():
             result = categorizer_obj.categorize_vulnerability_gpt(description)
         elif args.source == 'llama':
             result = categorizer_obj.categorize_vulnerability_llama(description)
+        elif args.source == 'combined':
+            result = categorizer_obj.categorize_vulnerability_combined(description)
         else:
             result = None
 
@@ -115,6 +131,8 @@ def main():
             exporter = csv_exporter.GptCsvExporter(args.output_file)
         elif args.source == 'llama':
             exporter = csv_exporter.LlamaCsvExporter(args.output_file)
+        elif args.source == 'combined':
+            exporter = csv_exporter.BasicCsvExporter(args.output_file)
         else:
             exporter = csv_exporter.BasicCsvExporter(args.output_file)
         exporter.export(categorized_data)
