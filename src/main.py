@@ -6,12 +6,12 @@ import data_sources.nvd_extractor as nvd_extractor
 from catagorization.categorizer import Categorizer
 from output import json_exporter, csv_exporter
 
-def collect_data():
+
+def collect_data(search_params):
     vulnerabilities = []
-    nvd_response = nvd_extractor.get_nvd_data("data distribution service")
-    # Fix: extend from the correct key
-    vulnerabilities.extend(nvd_response.get("vulnerabilities", []))
-    print("NVD Response:", nvd_response)  # Debug
+    for param in search_params:
+        nvd_response = nvd_extractor.get_nvd_data(param)
+        vulnerabilities.extend(nvd_response.get("vulnerabilities", []))
     print("Collected vulnerabilities:", len(vulnerabilities))  # Debug
     return vulnerabilities
 
@@ -38,12 +38,16 @@ def preprocess_data(vulnerabilities):
     print("Normalized vulnerabilities:", len(normalized))  # Debug
     return normalized
 
+def read_search_params_from_file(file_path):
+    with open(file_path, 'r') as file:
+        return [line.strip() for line in file.readlines()]
+
 def main():
     parser = argparse.ArgumentParser(
         description="DDS Builder: Build a vulnerability dataset for DDS systems using an AI provider for categorization",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined'], required=True,
+    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'none'], required=True,
                         help="Select the AI provider for categorization")
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
@@ -51,6 +55,8 @@ def main():
     parser.add_argument('--vulners-key', help="API key for Vulners")
     parser.add_argument('--export-format', choices=['csv', 'json'], default='csv', help="Export format")
     parser.add_argument('--output-file', default="dataset/dds_vulnerabilities_AI.csv", help="Output file name")
+    parser.add_argument('--search-params', nargs='*', help="Search parameters for vulnerabilities")
+    parser.add_argument('--search-file', help="Path to a file containing search parameters")
     args = parser.parse_args()
 
     if args.vulners_key:
@@ -78,8 +84,16 @@ def main():
             print("Llama API key not found in environment.")
             return
 
+    search_params = args.search_params or []
+    if args.search_file:
+        search_params.extend(read_search_params_from_file(args.search_file))
+
+    if not search_params:
+        print("No search parameters provided.")
+        return
+
     print("Collecting vulnerability data...")
-    vulnerabilities = collect_data()
+    vulnerabilities = collect_data(search_params)
     if not vulnerabilities:
         print("No vulnerability data collected.")
         return
@@ -104,6 +118,8 @@ def main():
             result = categorizer_obj.categorize_vulnerability_llama(description)
         elif args.source == 'combined':
             result = categorizer_obj.categorize_vulnerability_combined(description)
+        elif args.source == 'none':
+            result = categorizer_obj.categorize_vulnerability_default(description)
         else:
             result = None
 
@@ -131,7 +147,7 @@ def main():
             exporter = csv_exporter.GptCsvExporter(args.output_file)
         elif args.source == 'llama':
             exporter = csv_exporter.LlamaCsvExporter(args.output_file)
-        elif args.source == 'combined':
+        elif args.source == 'combined' or args.source == 'none':
             exporter = csv_exporter.BasicCsvExporter(args.output_file)
         else:
             exporter = csv_exporter.BasicCsvExporter(args.output_file)
