@@ -28,6 +28,7 @@ def collect_data(search_params, source):
                 vulners_vulns = vulners_response['data']['search']
                 vulnerabilities.extend(vulners_vulns)
                 print(f"Found {len(vulners_vulns)} Vulners vulnerabilities")
+                vulnerabilities.extend(vulners_response['data']['search'])
     
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
@@ -129,6 +130,7 @@ def main():
     parser.add_argument('--search-file', help="Path to a file containing search parameters")
     args = parser.parse_args()
 
+    # Prioritize command-line arguments over environment variables
     if args.vulners_key:
         os.environ["VULNERS_API_KEY"] = args.vulners_key
     os.environ["CSV_OUTPUT_FILE"] = args.output_file
@@ -136,21 +138,21 @@ def main():
     if args.source in ['gemini', 'combined']:
         if args.gemini_key:
             os.environ["GEMINI_API_KEY"] = args.gemini_key
-        else:
+        elif not os.getenv("GEMINI_API_KEY"):
             print("Gemini API key not found in environment.")
             return
 
     if args.source in ['chatgpt', 'combined']:
         if args.chatgpt_key:
             os.environ["CHATGPT_API_KEY"] = args.chatgpt_key
-        else:
+        elif not os.getenv("CHATGPT_API_KEY"):
             print("ChatGPT API key not found in environment.")
             return
 
     if args.source in ['llama', 'combined']:
         if args.llama_key:
             os.environ["LLAMA_API_KEY"] = args.llama_key
-        else:
+        elif not os.getenv("LLAMA_API_KEY"):
             print("Llama API key not found in environment.")
             return
 
@@ -200,13 +202,15 @@ def main():
             vuln["vendor"] = categorization["vendor"]
             vuln["cause"] = categorization["cause"]
             vuln["impact"] = categorization["impact"]
+            vuln.update(result[0])
         else:
-            # Fallback values if categorization fails
+             # Fallback values if categorization fails
             vuln["cwe_category"] = "UNKNOWN"
             vuln["cwe_explanation"] = ""
             vuln["vendor"] = vuln.get("vendor", "Unknown")
             vuln["cause"] = ""
             vuln["impact"] = ""
+            print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
             
         categorized_data.append(vuln)
 
@@ -221,7 +225,8 @@ def main():
         elif args.source == 'combined' or args.source == 'none':
             exporter = csv_exporter.BasicCsvExporter(args.output_file)
         else:
-            exporter = csv_exporter.BasicCsvExporter(args.output_file)
+            print("Unsupported source for CSV export.")
+            return
         exporter.export(categorized_data)
     elif args.export_format == 'json':
         json_exporter.write_to_json(categorized_data, args.output_file)

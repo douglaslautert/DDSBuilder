@@ -106,7 +106,7 @@ Crie um arquivo `search_terms.txt`:
 Execute:
 
 ```bash
-python src/main.py --source gemini --data-source vulners --search-file search_terms.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE>
+python src/main.py --source gemini --data-source vulners --search-file search_terms.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_OPENAI>
 ```
 
 ## Docker
@@ -143,16 +143,16 @@ CMD ["python", "src/main.py"]
 docker build -t ddsbuilder .
 ```
 
-2. **Executar o container (com variáveis de ambiente e argumentos) usando IA para categorização:**
+2. **Executar o container usando IA para categorização:**
 
 ```bash
-docker run -e VULNERS_API_KEY=sua_chave_vulners -e GEMINI_API_KEY=sua_chave_gemini -e CHATGPT_API_KEY=sua_chave_chatgpt -e LLAMA_API_KEY=sua_chave_llama ddsbuilder --source combined --data-source both --export-format csv --output-file vulnerabilidades.csv --search-params "OpenDDS"
+docker run ddsbuilder python src/main.py --source combined --data-source both --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_OPENAI> --llama-key <SUA_CHAVE_OPENAI> --export-format csv --output-file vulnerabilidades.csv --search-params "OpenDDS"
 ```
 
-3. **Executar o container (com variáveis de ambiente e argumentos) sem usar IA para categorização:**
+3. **Executar o container sem usar IA para categorização:**
 
 ```bash
-docker run -e VULNERS_API_KEY=sua_chave_vulners ddsbuilder --source none --data-source both --export-format csv --output-file vulnerabilidades.csv --search-params "OpenDDS"
+docker run --source none --data-source nvd --export-format csv --output-file vulnerabilidades.csv --search-params "OpenDDS"
 ```
 
 ## Licença
