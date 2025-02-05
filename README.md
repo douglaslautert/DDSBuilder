@@ -87,10 +87,10 @@ Você pode configurar o DDS-Builder usando variáveis de ambiente, um arquivo de
 python src/main.py --source combined --data-source both --search-params "OpenDDS" "RTI Connext DDS" --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --vulners-key <SUA_CHAVE_VULNERS> --github-token <SEU_TOKEN_GITHUB> --github-query '"DDS Security" language:C++'
 ```
 
-**Sem IA, apenas Vulners:**
+**Sem IA, usando a fonte do NVD:**
 
 ```bash
-python src/main.py --source none --data-source vulners --search-params "OpenDDS" --vulners-key <SUA_CHAVE_VULNERS>
+python src/main.py --source none --data-source nvd --search-params "OpenDDS"
 ```
 
 **Usando arquivo de busca:**
