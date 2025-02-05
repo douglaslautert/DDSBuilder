@@ -98,6 +98,7 @@ def extract_vulners_data(vulnerability):
         'severity': vulnerability.get('_source', {}).get('cvss', {}).get('severity'), # vulners severity is on severity
         'source': 'Vulners'
     }
+
 def categorize_vulnerability_gpt(description):
     """Categorizes the vulnerability and extracts cause, impact, and vendor using Chat GPT."""
     client = OpenAI(

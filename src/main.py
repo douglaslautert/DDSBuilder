@@ -3,16 +3,40 @@ import argparse
 import re
 from processing import normalizer
 import data_sources.nvd_extractor as nvd_extractor
-from catagorization.categorizer import Categorizer
+import data_sources.vulners_extractor as vulners_extractor
+from categorization.categorizer import Categorizer
 from output import json_exporter, csv_exporter
 
 
-def collect_data(search_params):
+def collect_data(search_params, source):
+    """
+    Collect vulnerability data from specified sources.
+    """
     vulnerabilities = []
-    for param in search_params:
-        nvd_response = nvd_extractor.get_nvd_data(param)
-        vulnerabilities.extend(nvd_response.get("vulnerabilities", []))
-    print("Collected vulnerabilities:", len(vulnerabilities))  # Debug
+    
+    if source in ['nvd', 'both']:
+        for param in search_params:
+            nvd_response = nvd_extractor.get_nvd_data(param)
+            if nvd_response and 'vulnerabilities' in nvd_response:
+                vulnerabilities.extend(nvd_response['vulnerabilities'])
+                print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities")
+    
+    if source in ['vulners', 'both']:
+        for param in search_params:
+            vulners_response = vulners_extractor.get_vulners_data(param)
+            if vulners_response and 'data' in vulners_response and 'search' in vulners_response['data']:
+                vulners_vulns = vulners_response['data']['search']
+                vulnerabilities.extend(vulners_vulns)
+                print(f"Found {len(vulners_vulns)} Vulners vulnerabilities")
+    
+    # Debug output
+    print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
+    print("Sources breakdown:")
+    nvd_count = sum(1 for v in vulnerabilities if 'cve' in v)
+    vulners_count = sum(1 for v in vulnerabilities if '_source' in v)
+    print(f"- NVD: {nvd_count}")
+    print(f"- Vulners: {vulners_count}")
+    
     return vulnerabilities
 
 def preprocess_data(vulnerabilities):
@@ -30,7 +54,7 @@ def preprocess_data(vulnerabilities):
         # Create a punctuation-free version for normalization
         description_without_punct = re.sub(r'[^\w\s]', '', truncated_description).lower() if truncated_description else ""
 
-        norm = normalizer.normalize_nvd_data(vuln, description_without_punct, truncated_description)
+        norm = normalizer.normalize_data(vuln, description_without_punct, truncated_description)
         vuln_id = norm.get("id")
         if norm and vuln_id and vuln_id not in seen_ids:
             normalized.append(norm)
@@ -49,6 +73,8 @@ def main():
     )
     parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'none'], required=True,
                         help="Select the AI provider for categorization")
+    parser.add_argument('--data-source', choices=['nvd', 'vulners', 'both'], required=True,
+                        help="Select the data source for vulnerabilities")
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
     parser.add_argument('--llama-key', help="API key for Llama")
@@ -93,7 +119,7 @@ def main():
         return
 
     print("Collecting vulnerability data...")
-    vulnerabilities = collect_data(search_params)
+    vulnerabilities = collect_data(search_params, args.data_source)
     if not vulnerabilities:
         print("No vulnerability data collected.")
         return
@@ -104,12 +130,14 @@ def main():
         print("No normalized vulnerabilities found.")
         return
 
-    print(f"Categorizing vulnerabilities using {args.source}...")
+    print("Categorizing vulnerabilities...")
     categorizer_obj = Categorizer()
     categorized_data = []
+    
     for vuln in normalized_data:
         description = vuln.get("description", "")
-        # Call corresponding categorization method; expect a list with a tuple.
+        result = None
+        
         if args.source == 'gemini':
             result = categorizer_obj.categorize_vulnerability_gemini(description)
         elif args.source == 'chatgpt':
@@ -120,23 +148,22 @@ def main():
             result = categorizer_obj.categorize_vulnerability_combined(description)
         elif args.source == 'none':
             result = categorizer_obj.categorize_vulnerability_default(description)
+            
+        if result and len(result) > 0:
+            categorization = result[0]  # Get first result dictionary
+            vuln["cwe_category"] = categorization["cwe_category"]
+            vuln["cwe_explanation"] = categorization["explanation"]
+            vuln["vendor"] = categorization["vendor"]
+            vuln["cause"] = categorization["cause"]
+            vuln["impact"] = categorization["impact"]
         else:
-            result = None
-
-        if result:
-            # result is expected to be a list containing a tuple.
-            vuln["cwe_category"]    = result[0][0]
-            vuln["cwe_explanation"] = result[0][1]
-            vuln["vendor"]          = result[0][2]
-            vuln["cause"]           = result[0][3]
-            vuln["impact"]          = result[0][4]
-        else:
-            # Fallback if categorization fails:
-            vuln["cwe_category"]    = "UNKNOWN"
+            # Fallback values if categorization fails
+            vuln["cwe_category"] = "UNKNOWN"
             vuln["cwe_explanation"] = ""
-            vuln["vendor"]          = vuln.get("vendor", "Unknown")
-            vuln["cause"]           = ""
-            vuln["impact"]          = ""
+            vuln["vendor"] = vuln.get("vendor", "Unknown")
+            vuln["cause"] = ""
+            vuln["impact"] = ""
+            
         categorized_data.append(vuln)
 
     print("Exporting data to", args.output_file)

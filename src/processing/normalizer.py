@@ -28,7 +28,7 @@ def filtro_vulner(vulnerability, description_without_punct, truncated_descriptio
         'source': 'Vulners'
     }
 
-def normalize_data(vulnerability, description_without_punct, truncated_description):
+def normalize_old_data(vulnerability, description_without_punct, truncated_description):
     source = vulnerability.get('_source', {})
     normalized = {
         'id': source.get('id') or vulnerability.get('id'),
@@ -42,22 +42,36 @@ def normalize_data(vulnerability, description_without_punct, truncated_descripti
     }
     return normalized
 
-def normalize_nvd_data(vulnerability, description_without_punct, truncated_description):
+def normalize_data(vulnerability, description_without_punct, truncated_description):
+    """Normalize vulnerability data from different sources."""
     if 'cve' in vulnerability:
         # NVD data structure
         cve = vulnerability['cve']
         source = {
             'id': cve.get('id'),
-            'title': next((desc.get('value') for desc in cve.get('descriptions', []) if desc.get('lang') == 'en'), 'No Title'),
+            'title': next((desc.get('value') for desc in cve.get('descriptions', []) 
+                          if desc.get('lang') == 'en'), 'No Title'),
             'published': vulnerability.get('publishedDate'),
             'cvss': {
-                'score': next((metric['cvssData']['baseScore'] for metric in vulnerability.get('metrics', {}).get('cvssMetricV31', [])), None),
-                'severity': next((metric['cvssData']['baseSeverity'] for metric in vulnerability.get('metrics', {}).get('cvssMetricV31', [])), None)
+                'score': next((metric['cvssData']['baseScore'] 
+                             for metric in vulnerability.get('metrics', {}).get('cvssMetricV31', [])), None),
+                'severity': next((metric['cvssData']['baseSeverity'] 
+                                for metric in vulnerability.get('metrics', {}).get('cvssMetricV31', [])), None)
             }
         }
+        data_source = 'NVD'
     else:
-        # Vulners data structure
+        # Vulners or other data structure
         source = vulnerability.get('_source', {})
+        # Determine source based on data structure
+        if '_source' in vulnerability:
+            data_source = 'Vulners'
+        elif 'OSV' in str(vulnerability.get('id', '')):
+            data_source = 'OSV'
+        elif 'PRION' in str(vulnerability.get('id', '')):
+            data_source = 'PRION'
+        else:
+            data_source = vulnerability.get('source', 'Unknown')
 
     normalized = {
         'id': source.get('id') or vulnerability.get('id'),
@@ -67,9 +81,10 @@ def normalize_nvd_data(vulnerability, description_without_punct, truncated_descr
         'published': source.get('published') or vulnerability.get('published', ''),
         'cvss_score': source.get('cvss', {}).get('score', ''),
         'severity': source.get('cvss', {}).get('severity', ''),
-        'source': vulnerability.get('source', 'NVD')
+        'source': data_source  # Use determined source
     }
-    print("Normalized data:", normalized)  # Debug
+    
+    print(f"Normalized data from {data_source}: {normalized['id']}")  # Debug output
     return normalized
 
 def filter_vulnerabilities(vulnerabilities, **criteria):
@@ -86,7 +101,7 @@ def get_vulners_data(vulnerability, fields=None):
     """
     Retorna os dados da vulnerabilidade com os campos especificados.
     """
-    data = normalize_data(vulnerability,
+    data = normalize_old_data(vulnerability,
                           vulnerability.get("description", ""),
                           vulnerability.get("description", ""))
     if fields:

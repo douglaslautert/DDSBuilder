@@ -1,6 +1,6 @@
 import csv
 import os
-import catagorization.categorizer as cat
+import categorization.categorizer as cat
 
 VENDORS = [
     "TiTAN DDS", "CoreDX", "Core DX", "Zhenrong DDS", "MilDDS", "Mil DDS", "GurumDDS", "InterCOM",
