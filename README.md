@@ -1,55 +1,160 @@
-# DDS Vulnerability Scraper with Google Gemini
+# Coletor de Vulnerabilidades DDS com IA para Categorização
 
-Este script Python coleta informações de vulnerabilidades relacionadas ao DDS (Data Distribution Service) da API do Vulners e usa o Google Gemini para categorizar cada vulnerabilidade em uma categoria CWE.
+Este script Python coleta informações de vulnerabilidades relacionadas ao DDS (Data Distribution Service) de várias fontes (NVD, Vulners, GitHub) e usa IA (Google Gemini, ChatGPT, Llama) para categorizar cada vulnerabilidade em uma categoria CWE, identificar o fornecedor e extrair a causa e o impacto da vulnerabilidade.
 
+## Funcionalidades
+
+- Coleta dados de vulnerabilidades do NVD, Vulners e GitHub.
+- Usa IA para categorizar vulnerabilidades e extrair informações relevantes.
+- Suporta múltiplos provedores de IA: Google Gemini, ChatGPT e Llama.
+- Lida com vulnerabilidades duplicadas e normaliza os dados.
+- Exporta dados para formatos CSV e JSON.
+- Possibilidade de usar a ferramenta sem IA.
 
 ## Pré-requisitos
 
-- Você precisará de uma chave de API do Vulners. Obtenha uma em: https://vulners.com/
-- Você precisará de uma chave de API do Google Gemini. Crie uma em: https://developers.google.com/generative-ai
-- Python 3.7 ou superior: Certifique-se de ter o Python instalado. Você pode baixá-lo aqui: https://www.python.org/downloads/
+- Python 3.8 ou superior: Certifique-se de ter o Python instalado. Você pode baixá-lo [aqui](https://www.python.org/downloads/).
+- Chaves de API para os seguintes serviços:
+  - Vulners: Obtenha em [Vulners](https://vulners.com/)
+  - Google Gemini: Obtenha em [Google Gemini](https://developers.google.com/generative-ai)
+  - ChatGPT: Obtenha em [OpenAI](https://openai.com/)
+  - Llama: Obtenha em [Llama](https://llama-api.com/)
 
+## Instalação
+
+1. Clone o repositório:
+
+   ```bash
+   git clone https://github.com/seuusuario/DDSBuilder.git
+   cd DDSBuilder
+   ```
+
+2. Crie e ative um ambiente virtual (recomendado):
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate  # Linux/macOS
+   .venv\Scripts\activate  # Windows
+   ```
+
+3. Instale os pacotes necessários:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   Certifique-se de que o `google-generativeai` esteja instalado. Se necessário, instale-o separadamente:
+
+   ```bash
+   pip install google-g
+   ```
 
 ## Configuração
 
-- Substitua as Chaves de API: No arquivo scrap_gemini.py, substitua os espaços reservados YOUR_GEMINI_API_KEY e YOUR_VULNERS_API_KEY pelas suas chaves de API reais.
-- Defina a Variável de Ambiente: Defina a variável de ambiente GOOGLE_API_KEY com sua chave de API do Gemini. Você pode fazer isso diretamente no seu terminal antes de executar o script:
+Você pode configurar o DDS-Builder usando variáveis de ambiente, um arquivo de configuração ou argumentos de linha de comando. A ordem de prioridade é: argumentos de linha de comando > variáveis de ambiente > arquivo de configuração.
 
+1. Defina as chaves de API como variáveis de ambiente:
 
+   ```bash
+   export VULNERS_API_KEY=sua_chave_vulners
+   export GEMINI_API_KEY=sua_chave_gemini
+   export CHATGPT_API_KEY=sua_chave_chatgpt
+   export LLAMA_API_KEY=sua_chave_llama
+   ```
 
+2. Alternativamente, você pode passar as chaves de API como argumentos ao executar o script.
 
-## Execução
+## Uso
 
-- Salve o script: Salve o código fornecido como scrap_gemini.py.
-- Execute o script: Abra seu terminal e navegue até o diretório onde você salvou o script. Em seguida, execute o script:
-   
-    ~~~
-    python dds_vulners_collect.py
-    ~~~
+### Argumentos de Linha de Comando
 
+- `--source`: Seleciona o provedor de IA para categorização (`gemini`, `chatgpt`, `llama`, `combined`, `none`).
+- `--data-source`: Seleciona a fonte de dados para vulnerabilidades (`nvd`, `vulners`, `both`).
+- `--gemini-key`: Chave de API para Gemini.
+- `--chatgpt-key`: Chave de API para ChatGPT.
+- `--llama-key`: Chave de API para Llama.
+- `--vulners-key`: Chave de API para Vulners.
+- `--export-format`: Formato de exportação (`csv`, `json`).
+- `--output-file`: Nome do arquivo de saída.
+- `--search-params`: Parâmetros de busca para vulnerabilidades.
+- `--search-file`: Caminho para um arquivo contendo parâmetros de busca.
 
-## Saída
+### Exemplo de Comando
 
-O script gerará um arquivo CSV chamado dds_vulnerabilities_gemini.csv contendo as seguintes informações para cada vulnerabilidade encontrada:
+**Com IA e múltiplas fontes:**
 
+```bash
+python src/main.py --source combined --data-source both --search-params "OpenDDS" "RTI Connext DDS" --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --vulners-key <SUA_CHAVE_VULNERS> --github-token <SEU_TOKEN_GITHUB> --github-query '"DDS Security" language:C++'
+```
 
+**Sem IA, apenas Vulners:**
 
-- id: ID da vulnerabilidade (por exemplo, CVE-2024-1234).
+```bash
+python src/main.py --source none --data-source vulners --search-params "OpenDDS" --vulners-key <SUA_CHAVE_VULNERS>
+```
 
-- title: Título da vulnerabilidade.
+**Usando arquivo de busca:**
 
-- description: Descrição da vulnerabilidade.
+Crie um arquivo `search_terms.txt`:
 
-- vendor: Vendor afetado pela vulnerabilidade.
+```
+"OpenDDS"
+"RTI Connext"
+"Eclipse Cyclone DDS"
+```
 
-- published: Data de publicação da vulnerabilidade.
+Execute:
 
-- cvss: Pontuação CVSS da vulnerabilidade.
+```bash
+python src/main.py --source gemini --data-source vulners --search-file search_terms.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE>
+```
 
-- severity: Gravidade da vulnerabilidade (por exemplo, Alta, Média, Baixa).
+## Docker
 
-- cwe_category: Categoria CWE atribuída pelo Google Gemini.
+Você também pode executar o script usando Docker.
 
-- cwe_explanation: Explicação da categoria CWE fornecida pelo Google Gemini.
+# Dockerfile
 
-- source: Fonte dos dados da vulnerabilidade (Vulners).
+```yaml
+# Use uma imagem oficial do Python como imagem base
+FROM python:3.9-slim
+
+# Defina o diretório de trabalho no contêiner
+WORKDIR /app
+
+# Copie o conteúdo do diretório atual para o contêiner em /app
+COPY . /app
+
+# Instale os pacotes necessários especificados em requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Defina a variável de ambiente
+ENV NAME DDSBuilder
+
+# Execute main.py quando o contêiner for iniciado
+CMD ["python", "src/main.py"]
+```
+
+# Construir e Executar o Contêiner Docker
+
+1. **Construir a imagem:**
+
+```bash
+docker build -t ddsbuilder .
+```
+
+2. **Executar o container (com variáveis de ambiente e argumentos) usando IA para categorização:**
+
+```bash
+docker run -e VULNERS_API_KEY=sua_chave_vulners -e GEMINI_API_KEY=sua_chave_gemini -e CHATGPT_API_KEY=sua_chave_chatgpt -e LLAMA_API_KEY=sua_chave_llama ddsbuilder --source combined --data-source both --export-format csv --output-file vulnerabilidades.csv --search-params "OpenDDS"
+```
+
+3. **Executar o container (com variáveis de ambiente e argumentos) sem usar IA para categorização:**
+
+```bash
+docker run -e VULNERS_API_KEY=sua_chave_vulners ddsbuilder --source none --data-source both --export-format csv --output-file vulnerabilidades.csv --search-params "OpenDDS"
+```
+
+## Licença
+
+Este projeto está licenciado sob a Licença GNU - veja o arquivo LICENSE para mais detalhes.
