@@ -47,44 +47,56 @@ def normalize_data(vulnerability, description_without_punct, truncated_descripti
     if 'cve' in vulnerability:
         # NVD data structure
         cve = vulnerability['cve']
-        source = {
+        
+        # Extract CVSS score and severity from metrics
+        cvss_score = None
+        severity = None
+        published_date = cve.get('published')  # Get published date from cve object
+        
+        if 'metrics' in cve:
+            metrics = cve['metrics']
+            # Try CVSS v3.1 first
+            if 'cvssMetricV31' in metrics and metrics['cvssMetricV31']:
+                primary_metric = next(
+                    (m for m in metrics['cvssMetricV31'] if m.get('type') == 'Primary'),
+                    metrics['cvssMetricV31'][0]
+                )
+                cvss_score = primary_metric['cvssData'].get('baseScore')
+                severity = primary_metric['cvssData'].get('baseSeverity')
+            # Fallback to CVSS v2
+            elif 'cvssMetricV2' in metrics and metrics['cvssMetricV2']:
+                primary_metric = next(
+                    (m for m in metrics['cvssMetricV2'] if m.get('type') == 'Primary'),
+                    metrics['cvssMetricV2'][0]
+                )
+                cvss_score = primary_metric['cvssData'].get('baseScore')
+                severity = primary_metric.get('baseSeverity')
+
+        normalized = {
             'id': cve.get('id'),
             'title': next((desc.get('value') for desc in cve.get('descriptions', []) 
                           if desc.get('lang') == 'en'), 'No Title'),
-            'published': vulnerability.get('publishedDate'),
-            'cvss': {
-                'score': next((metric['cvssData']['baseScore'] 
-                             for metric in vulnerability.get('metrics', {}).get('cvssMetricV31', [])), None),
-                'severity': next((metric['cvssData']['baseSeverity'] 
-                                for metric in vulnerability.get('metrics', {}).get('cvssMetricV31', [])), None)
-            }
+            'description': truncated_description,
+            'description_normalized': description_without_punct,
+            'published': published_date,  # Use published date from cve
+            'cvss_score': cvss_score,
+            'severity': severity,
+            'source': 'NVD'
         }
-        data_source = 'NVD'
     else:
         # Vulners or other data structure
         source = vulnerability.get('_source', {})
-        # Determine source based on data structure
-        if '_source' in vulnerability:
-            data_source = 'Vulners'
-        elif 'OSV' in str(vulnerability.get('id', '')):
-            data_source = 'OSV'
-        elif 'PRION' in str(vulnerability.get('id', '')):
-            data_source = 'PRION'
-        else:
-            data_source = vulnerability.get('source', 'Unknown')
+        normalized = {
+            'id': source.get('id') or vulnerability.get('id'),
+            'title': source.get('title') or vulnerability.get('title', 'No Title'),
+            'description': truncated_description,
+            'description_normalized': description_without_punct,
+            'published': source.get('published') or vulnerability.get('published', ''),
+            'cvss_score': source.get('cvss', {}).get('score'),
+            'severity': source.get('cvss', {}).get('severity'),
+            'source': 'Vulners' if '_source' in vulnerability else vulnerability.get('source', 'Unknown')
+        }
 
-    normalized = {
-        'id': source.get('id') or vulnerability.get('id'),
-        'title': source.get('title') or vulnerability.get('title', 'No Title'),
-        'description': truncated_description,
-        'description_normalized': description_without_punct,
-        'published': source.get('published') or vulnerability.get('published', ''),
-        'cvss_score': source.get('cvss', {}).get('score', ''),
-        'severity': source.get('cvss', {}).get('severity', ''),
-        'source': data_source  # Use determined source
-    }
-    
-    print(f"Normalized data from {data_source}: {normalized['id']}")  # Debug output
     return normalized
 
 def filter_vulnerabilities(vulnerabilities, **criteria):

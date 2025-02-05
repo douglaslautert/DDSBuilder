@@ -70,6 +70,13 @@ class Categorizer:
         ```
         {description}
         ```
+        Rules for returning the vendor:
+        - Return only the official/primary vendor name
+        - For open source projects, return the organization maintaining it
+        - If multiple vendors are mentioned, return the one responsible for the vulnerable component
+        - Normalize variations of the same vendor name
+        - If no clear vendor is found, return "Unknown"
+        - Use official vendor names where possible and keep the same name for vulnerabilities of the same vendor
 
         Output:
         ```json
@@ -105,6 +112,13 @@ class Categorizer:
         ```
         {description}
         ```
+        Rules for returning the vendor:
+        - Return only the official/primary vendor name
+        - For open source projects, return the organization maintaining it
+        - If multiple vendors are mentioned, return the one responsible for the vulnerable component
+        - Normalize variations of the same vendor name
+        - If no clear vendor is found, return "Unknown"
+        - Use official vendor names where possible and keep the same name for vulnerabilities of the same vendor
 
         Output:
         ```json
@@ -132,6 +146,13 @@ class Categorizer:
         ```
         {description}
         ```
+        Rules for returning the vendor:
+        - Return only the official/primary vendor name
+        - For open source projects, return the organization maintaining it
+        - If multiple vendors are mentioned, return the one responsible for the vulnerable component
+        - Normalize variations of the same vendor name
+        - If no clear vendor is found, return "Unknown"
+        - Use official vendor names where possible and keep the same name for vulnerabilities of the same vendor
 
         Output:
         ```json
