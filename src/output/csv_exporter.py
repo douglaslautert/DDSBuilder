@@ -1,159 +1,76 @@
 import csv
-import catagorization.categorizer as cat
+import os
+import categorization.categorizer as cat
 
 VENDORS = [
     "TiTAN DDS", "CoreDX", "Core DX", "Zhenrong DDS", "MilDDS", "Mil DDS", "GurumDDS", "InterCOM",
     "Fast DDS", "fastdds", "cyclonedds", "connext", "opendds"
 ]
-# write to csv from chat-GPT
-def write_to_csv_from_gpt(data, filename):
-    """Writes the extracted vulnerability data to a CSV file,
-    avoiding duplicates and using ChatGPT for categorization.
-    """
-    fieldnames = ['id', 'title', 'description', 'vendor', 'published',
-                  'cvss_score', 'severity', 'cwe_category', 'cwe_explanation', 'cause', 'impact', 'source']
-    existing_vulnerabilities = {}
 
-    # Tente ler vulnerabilidades existentes do arquivo
-    try:
-        with open(filename, 'r', encoding="latin1") as csvfile:  # Use latin1 aqui
-            reader = csv.DictReader(csvfile)
-            # Verificar se o arquivo está vazio
-            if reader.fieldnames:
-                for row in reader:
-                    # Lidar com a possibilidade da chave 'id' não existir
-                    try:
-                        existing_vulnerabilities[row['title']] = row['id'] 
-                    except KeyError:
-                        print(f"Aviso: A linha não possui a chave 'id': {row}")
-                        # existing_vulnerabilities[row['title']] = "ID_DESCONHECIDO"
-    except FileNotFoundError:
-        pass
+class BasicCsvExporter:
+    # Adjust fieldnames as needed by your vulnerability dictionary.
+    fieldnames = [
+        "id", "title", "description", "vendor",
+        "cwe_category", "cwe_explanation", "cause", "impact",
+        "published", "cvss_score", "severity", "source", "description_normalized", "explanation"
+    ]
+    
+    def __init__(self, filename):
+        self.filename = filename
+        # Ensure the output directory exists.
+        directory = os.path.dirname(filename)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+        # Write header immediately to create/overwrite file.
+        self.write_header()
+        self.existing = {}
 
-    with open(filename, 'a', newline='', encoding="utf-8") as csvfile:  # UTF-8 para a escrita
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        # Escrever o cabeçalho apenas se o arquivo estiver vazio
-        if len(existing_vulnerabilities) == 0:
+    def write_header(self):
+        with open(self.filename, 'w', newline='', encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=self.fieldnames, delimiter=';')
             writer.writeheader()
 
+    def write_row(self, row):
+        if 'id' not in row or not row['id']:
+            print("Aviso: Linha sem chave 'id':", row)
+            return
+        # Append row to file.
+        with open(self.filename, 'a', newline='', encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=self.fieldnames, delimiter=';')
+            writer.writerow(row)
+            self.existing[row.get('title')] = row.get('id')
+
+    def export(self, data):
         for item in data:
-            # Verificar se a vulnerabilidade já existe com base no título
-            if item['title'] not in existing_vulnerabilities:
-                vulnerability_data = cat.categorize_vulnerability_gpt(item['description'])
-                # Filtrar vulnerabilidades que não são referentes a DDS e aos vendors especificados
-                if any(vendor.lower() in item['description'].lower() for vendor in VENDORS):
-                    for cwe_category, cwe_explanation, vendor, cause, impact in vulnerability_data:
-                        if vendor.strip().upper() != 'UNKNOWN':
-                            # Atribuir os valores ao dicionário 'item'
-                            item['cwe_category'] = cwe_category
-                            item['cwe_explanation'] = cwe_explanation
-                            item['vendor'] = vendor
-                            item['cause'] = cause
-                            item['impact'] = impact
+            if item.get('title') not in self.existing:
+                self.write_row(item)
 
-                            writer.writerow(item)
-                            existing_vulnerabilities[item['title']] = item['id'] 
-# write to csv from gemini/google IA
-def write_to_csv_from_gemini(data, filename):
-    """Writes the extracted vulnerability data to a CSV file,
-    avoiding duplicates and using Gemini for categorization.
-    """
-    fieldnames = ['id', 'title', 'description', 'vendor', 'published',
-                  'cvss_score', 'severity', 'cwe_category', 'cwe_explanation', 'cause', 'impact', 'source']
-    existing_vulnerabilities = {}
+class GptCsvExporter(BasicCsvExporter):
+    def export(self, data):
+        for item in data:
+            if item.get('title') not in self.existing:
+                self.write_row(item)
 
-    # Tente ler vulnerabilidades existentes do arquivo
-    try:
-        with open(filename, 'r', encoding="latin1") as csvfile:  # Use latin1 aqui
-            reader = csv.DictReader(csvfile)
-            # Verificar se o arquivo está vazio
-            if reader.fieldnames:
-                for row in reader:
-                    # Lidar com a possibilidade da chave 'id' não existir
-                    try:
-                        existing_vulnerabilities[row['title']] = row['id'] 
-                    except KeyError:
-                        print(f"Aviso: A linha não possui a chave 'id': {row}")
-                        # existing_vulnerabilities[row['title']] = "ID_DESCONHECIDO"
-    except FileNotFoundError:
-        pass
-    try:    
-        with open(filename, 'a', newline='', encoding="utf-8") as csvfile:  # UTF-8 para a escrita
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+class GeminiCsvExporter(BasicCsvExporter):
+    def export(self, data):
+        for item in data:
+            if item.get('title') not in self.existing:
+                self.write_row(item)
 
-            # Escrever o cabeçalho apenas se o arquivo estiver vazio
-            if len(existing_vulnerabilities) == 0:
-                writer.writeheader()
+class LlamaCsvExporter(BasicCsvExporter):
+    def export(self, data):
+        for item in data:
+            if item.get('title') not in self.existing:
+                self.write_row(item)
 
-            for item in data:
-                # Verificar se a vulnerabilidade já existe com base no título
-                if item['title'] not in existing_vulnerabilities:
-                    vulnerability_data = cat.categorize_vulnerability_gemini(item['description'])
-                    # Filtrar vulnerabilidades que não são referentes a DDS e aos vendors especificados
-                    if any(vendor.lower() in item['description'].lower() for vendor in VENDORS):
-                        for cwe_category, cwe_explanation, vendor, cause, impact in vulnerability_data:
-                            if vendor.strip().upper() != 'UNKNOWN':
-                                # Atribuir os valores ao dicionário 'item'
-                                item['cwe_category'] = cwe_category
-                                item['cwe_explanation'] = cwe_explanation
-                                item['vendor'] = vendor
-                                item['cause'] = cause
-                                item['impact'] = impact
+class GithubCsvExporter(BasicCsvExporter):
+    def export(self, data):
+        for item in data:
+            if item.get('title') not in self.existing:
+                self.write_row(item)
 
-                                writer.writerow(item)
-                                existing_vulnerabilities[item['title']] = item['id'] 
-    except IOError as e:
-        print(f"Error to open file: {e}")
-        
-    # write to csv from llama/meta IA
-def write_to_csv_from_llama(data, filename):
-    """Writes the extracted vulnerability data to a CSV file,
-    avoiding duplicates and using LLAMA for categorization.
-    """
-    fieldnames = ['id', 'title', 'description', 'vendor', 'published',
-                  'cvss_score', 'severity', 'cwe_category', 'cwe_explanation', 'cause', 'impact', 'source']
-    existing_vulnerabilities = {}
-
-    # Tente ler vulnerabilidades existentes do arquivo
-    try:
-        with open(filename, 'r', encoding="latin1") as csvfile:  # Use latin1 aqui
-            reader = csv.DictReader(csvfile)
-            # Verificar se o arquivo está vazio
-            if reader.fieldnames:
-                for row in reader:
-                    # Lidar com a possibilidade da chave 'id' não existir
-                    try:
-                        existing_vulnerabilities[row['title']] = row['id'] 
-                    except KeyError:
-                        print(f"Aviso: A linha não possui a chave 'id': {row}")
-                        # existing_vulnerabilities[row['title']] = "ID_DESCONHECIDO"
-    except FileNotFoundError:
-        pass
-    try:    
-        with open(filename, 'a', newline='', encoding="utf-8") as csvfile:  # UTF-8 para a escrita
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-            # Escrever o cabeçalho apenas se o arquivo estiver vazio
-            if len(existing_vulnerabilities) == 0:
-                writer.writeheader()
-
-            for item in data:
-                # Verificar se a vulnerabilidade já existe com base no título
-                if item['title'] not in existing_vulnerabilities:
-                    vulnerability_data = cat.categorize_vulnerability_llama(item['description'])
-                    # Filtrar vulnerabilidades que não são referentes a DDS e aos vendors especificados
-                    if any(vendor.lower() in item['description'].lower() for vendor in VENDORS):
-                        for cwe_category, cwe_explanation, vendor, cause, impact in vulnerability_data:
-                            if vendor.strip().upper() != 'UNKNOWN':
-                                # Atribuir os valores ao dicionário 'item'
-                                item['cwe_category'] = cwe_category
-                                item['cwe_explanation'] = cwe_explanation
-                                item['vendor'] = vendor
-                                item['cause'] = cause
-                                item['impact'] = impact
-
-                                writer.writerow(item)
-                                existing_vulnerabilities[item['title']] = item['id'] 
-    except IOError as e:
-        print(f"Error to open file: {e}")
+def write_rows(data, filename="output.csv"):
+    exporter = BasicCsvExporter(filename)
+    for item in data:
+        if item.get('title') not in exporter.existing:
+            exporter.write_row(item)
