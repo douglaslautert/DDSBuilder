@@ -22,13 +22,12 @@ def get_vulners_data(search_query, fields, skip):
         }
     }
 
-def get_nvd_data(keyword, start_index=0, results_per_page=40):
+def get_nvd_data(keyword):
     """Fetches vulnerability data from the NVD API"""
     base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
     params = {
         'keywordSearch': keyword,
-        'startIndex': start_index,
-        'resultsPerPage': results_per_page
+    
     }
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'

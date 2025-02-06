@@ -12,8 +12,9 @@ class BasicCsvExporter:
     fieldnames = [
         "id", "title", "description", "vendor",
         "cwe_category", "cwe_explanation", "cause", "impact",
-        "published", "cvss_score", "severity", "source", "description_normalized"
+        "published", "cvss_score", "severity", "source", "description_normalized", "explanation"
     ]
+    
     def __init__(self, filename):
         self.filename = filename
         # Ensure the output directory exists.
@@ -38,12 +39,12 @@ class BasicCsvExporter:
             writer = csv.DictWriter(f, fieldnames=self.fieldnames, delimiter=';')
             writer.writerow(row)
             self.existing[row.get('title')] = row.get('id')
+
     def export(self, data):
         for item in data:
             if item.get('title') not in self.existing:
                 self.write_row(item)
 
-                
 class GptCsvExporter(BasicCsvExporter):
     def export(self, data):
         for item in data:
