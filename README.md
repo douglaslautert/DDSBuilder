@@ -84,16 +84,22 @@ Você pode configurar o DDS-Builder usando variáveis de ambiente, um arquivo de
 **Com IA e múltiplas fontes:**
 
 ```bash
-python src/main.py --source combined --data-source both --search-params "OpenDDS" "RTI Connext DDS" --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --vulners-key <SUA_CHAVE_VULNERS> --github-token <SEU_TOKEN_GITHUB> --github-query '"DDS Security" language:C++'
+python src/main.py --source combined --data-source both --search-params "OpenDDS" "RTI Connext DDS" --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --vulners-key <SUA_CHAVE_VULNERS> --export-format csv --output-file vulnerabilidades.csv
 ```
 
 **Sem IA, usando a fonte do NVD:**
 
 ```bash
-python src/main.py --source none --data-source nvd --search-params "OpenDDS"
+python src/main.py --source none --data-source nvd --search-params "OpenDDS" --export-format csv --output-file vulnerabilidades.csv
 ```
 
-**Usando arquivo de busca:**
+**Sem IA, usando a fonte do NVD e VULNERS:**
+
+```bash
+python src/main.py --source none --data-source both --vulners-key <SUA_CHAVE_VULNERS> --search-params "OpenDDS" --export-format csv --output-file vulnerabilidades-both.csv
+```
+
+**Usando arquivo contendo os parâmetros de busca busca:**
 
 Crie um arquivo `search_terms.txt`:
 
@@ -106,7 +112,7 @@ Crie um arquivo `search_terms.txt`:
 Execute:
 
 ```bash
-python src/main.py --source gemini --data-source vulners --search-file search_terms.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_OPENAI>
+python src/main.py --source gemini --data-source vulners --search-file search_terms.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_OPENAI> --output-file vulnerabilidades-both.csv
 ```
 
 ## Docker
