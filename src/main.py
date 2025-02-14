@@ -136,7 +136,7 @@ def main():
             print("Llama API key not found in environment.")
             return
     
-    if args.source in ['default', 'combined']:
+    if args.source in ['default']:
         if args.default_key and args.default_url and args.default_model:
             os.environ["DEFAULT_API_URL"] = args.default_url
             os.environ["DEFAULT_API_MODEL"] = args.default_model
