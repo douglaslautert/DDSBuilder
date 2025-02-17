@@ -2,8 +2,20 @@ import requests
 import json
 import re
 import os
+import time
 
 FIELDS = ["bulletinFamily", "cvss", "description", "id", "lastseen", "modified", "published", "title", "type", "vhref", "viewCount", "href", "enchantments", "bounty", "sourceData", "cvss3", "cvss2", "epss"]
+
+def get_data(search_params):
+    vulnerabilities = []
+    for param in search_params:
+            vulners_response = vulners_extractor.get_vulners_data(param)
+            if vulners_response and 'data' in vulners_response and 'search' in vulners_response['data']:
+                vulners_vulns = vulners_response['data']['search']
+                vulnerabilities.extend(vulners_vulns)
+                print(f"Found {len(vulners_vulns)} Vulners vulnerabilities")
+                time.sleep(1)
+    return vulnerabilities
 
 def get_vulners_data(query, skip=0):
     """Searches for vulnerabilities using the Vulners API."""

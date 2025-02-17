@@ -17,21 +17,10 @@ def collect_data(search_params, source):
     vulnerabilities = []
     
     if source in ['nvd', 'both']:
-        for param in search_params:
-            nvd_response = nvd_extractor.get_nvd_data(param)
-            if nvd_response and 'vulnerabilities' in nvd_response:
-                vulnerabilities.extend(nvd_response['vulnerabilities'])
-                print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities")
-                time.sleep(1)
+        vulnerabilities.extend(nvd_extractor.collect_data(search_params))
 
     if source in ['vulners', 'both']:
-        for param in search_params:
-            vulners_response = vulners_extractor.get_vulners_data(param)
-            if vulners_response and 'data' in vulners_response and 'search' in vulners_response['data']:
-                vulners_vulns = vulners_response['data']['search']
-                vulnerabilities.extend(vulners_vulns)
-                print(f"Found {len(vulners_vulns)} Vulners vulnerabilities")
-                time.sleep(1)
+        vulnerabilities.extend(vulners_extractor.get_data(search_params))
     
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
