@@ -230,7 +230,7 @@ python src/main.py --source <ai_provider> --data-source <data_source> --vulners-
     python src/main.py --source default --data-source vulners --search-file search_terms.txt --vulners-key <SUA_CHAVE_VULNERS> --default-key <SUA_CHAVE_DEFAULT> --default-model <MODELO_DEFAULT_LLM> --default-url <BASE_URL_DEFAULT> --output-file vulnerabilidades_default.csv
     ```
 
-    - `--source gemini`
+    - `--source default`
     - `--search-file`: Usa o arquivo `search_terms.txt`.
 
 ## Docker
