@@ -3,9 +3,8 @@ import re
 from datetime import datetime as dt
 import google.generativeai as genai
 import os
-import time
-from openai import OpenAI
-from transformers import pipeline
+import asyncio
+from openai import OpenAI, AsyncOpenAI
 
 
 # Safety configuration for Gemini
@@ -59,12 +58,12 @@ class Categorizer:
     def __init__(self):
         pass
 
-    def categorize_vulnerability_gpt(self, description):
-        client = OpenAI(api_key=os.environ["CHATGPT_API_KEY"])
+    async def categorize_vulnerability_gpt(self, description):
+        client = AsyncOpenAI(api_key=os.environ["CHATGPT_API_KEY"])
         prompt = f"""
         You are a security expert.
         Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
-        Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+        Provide the CWE ID (only the CWE ID of the vulnerability), a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
 
         Description:
         ```
@@ -83,9 +82,8 @@ class Categorizer:
         {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
         ```
         """
-        time.sleep(1)
         try:
-            completion = client.chat.completions.create(
+            completion = await client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -95,18 +93,17 @@ class Categorizer:
             print(f"Error calling ChatGPT API: {e}")
             return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
 
-
-    def categorize_vulnerability_gemini(self, description):
+    async def categorize_vulnerability_gemini(self, description):
         genai_api_key = os.environ.get("GEMINI_API_KEY", "")
         if not genai_api_key:
             print("Gemini API key not found in environment.")
             return [{ "cwe_category": "UNKNOWN", "explanation": "Gemini API key missing", "vendor": "Unknown", "cause": "Unknown", "impact": "Unknown"}]
         genai.configure(api_key=genai_api_key)
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         prompt = f"""
         You are a security expert.
         Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
-        Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+        Provide the CWE ID (only the CWE ID of the vulnerability), a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
 
         Description:
         ```
@@ -125,9 +122,8 @@ class Categorizer:
         {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
         ```
         """
-        time.sleep(1)
         try:
-            response = model.generate_content(prompt, safety_settings=safe)
+            response = await model.generate_content_async(prompt, safety_settings=safe)
             if response.candidates:
                 result = _extract_category(response.candidates[0].content.parts[0].text)
                 return [result]
@@ -135,12 +131,12 @@ class Categorizer:
             print(f"Error calling Gemini API: {e}")
         return [{"cwe_category": "UNKNOWN", "explanation": "API error", "vendor": "Unknown", "cause": "", "impact": ""}]
 
-    def categorize_vulnerability_llama(self, description):
-        client = OpenAI(api_key=os.environ["LLAMA_API_KEY"], base_url="https://api.llama-api.com")
+    async def categorize_vulnerability_llama(self, description):
+        client = AsyncOpenAI(api_key=os.environ["LLAMA_API_KEY"], base_url="https://api.llama-api.com")
         prompt = f"""
         You are a security expert.
         Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
-        Provide the CWE ID, a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+        Provide the CWE ID (only the CWE ID of the vulnerability), a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
 
         Description:
         ```
@@ -159,25 +155,26 @@ class Categorizer:
         {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
         ```
         """
-        time.sleep(1)
-        try:
-            response = client.chat.completions.create(
-                model="llama3.1-70b",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            result = _extract_category(response.choices[0].message.content)
-            return [result]
-        except Exception as e:
-            print(f"Error calling Llama API: {e}")
-            return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
+        retries = 3
+        for i in range(retries):
+            try:
+                response = await client.chat.completions.create(
+                    model="llama3.1-70b",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return [_extract_category(response.choices[0].message.content)]
+            except Exception as e:
+                print(f"Error calling Llama API (attempt {i+1}/{retries}): {e}")
+                await asyncio.sleep(2 ** i)  # Exponential backoff
+        return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
 
-    def categorize_vulnerability_combined(self, description):
+    async def categorize_vulnerability_combined(self, description):
         """
         Combines results from all AI providers using weighted voting.
         """
-        gemini_result = self.categorize_vulnerability_gemini(description)
-        gpt_result = self.categorize_vulnerability_gpt(description)
-        llama_result = self.categorize_vulnerability_llama(description)
+        gemini_result = await self.categorize_vulnerability_gemini(description)
+        gpt_result = await self.categorize_vulnerability_gpt(description)
+        llama_result = await self.categorize_vulnerability_llama(description)
 
         # Use voting system to combine results
         return self.combine_results(

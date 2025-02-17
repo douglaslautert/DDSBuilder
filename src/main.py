@@ -1,6 +1,8 @@
 import os
 import argparse
 import re
+import time
+import asyncio
 from processing import normalizer
 import data_sources.nvd_extractor as nvd_extractor
 import data_sources.vulners_extractor as vulners_extractor
@@ -20,7 +22,8 @@ def collect_data(search_params, source):
             if nvd_response and 'vulnerabilities' in nvd_response:
                 vulnerabilities.extend(nvd_response['vulnerabilities'])
                 print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities")
-    
+                time.sleep(1)
+
     if source in ['vulners', 'both']:
         for param in search_params:
             vulners_response = vulners_extractor.get_vulners_data(param)
@@ -28,7 +31,7 @@ def collect_data(search_params, source):
                 vulners_vulns = vulners_response['data']['search']
                 vulnerabilities.extend(vulners_vulns)
                 print(f"Found {len(vulners_vulns)} Vulners vulnerabilities")
-                vulnerabilities.extend(vulners_response['data']['search'])
+                time.sleep(1)
     
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
@@ -40,7 +43,7 @@ def collect_data(search_params, source):
     
     return vulnerabilities
 
-def preprocess_data(vulnerabilities):
+def preprocess_data(vulnerabilities, search_params):
     """Normalize vulnerability data and handle duplicates with improved tracking."""
     normalized = []
     seen_ids = {}  # Change to dict to track sources
@@ -88,6 +91,8 @@ def preprocess_data(vulnerabilities):
         norm = normalizer.normalize_data(vuln, description_without_punct, truncated_description)
         
         if norm:
+            # Assign vendor based on search parameters
+            norm['vendor'] = next((param for param in search_params if param.lower() in description_without_punct), "Unknown")
             normalized.append(norm)
             seen_ids[normalized_id] = {
                 'source': source,
@@ -111,7 +116,7 @@ def read_search_params_from_file(file_path):
     with open(file_path, 'r') as file:
         return [line.strip() for line in file.readlines()]
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(
         description="DDS Builder: Build a vulnerability dataset for DDS systems using an AI provider for categorization",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -171,7 +176,7 @@ def main():
         return
 
     print("Preprocessing data...")
-    normalized_data = preprocess_data(vulnerabilities)
+    normalized_data = preprocess_data(vulnerabilities, search_params)
     if not normalized_data:
         print("No normalized vulnerabilities found.")
         return
@@ -185,48 +190,38 @@ def main():
         result = None
         
         if args.source == 'gemini':
-            result = categorizer_obj.categorize_vulnerability_gemini(description)
+            result = await categorizer_obj.categorize_vulnerability_gemini(description)
         elif args.source == 'chatgpt':
-            result = categorizer_obj.categorize_vulnerability_gpt(description)
+            result = await categorizer_obj.categorize_vulnerability_gpt(description)
         elif args.source == 'llama':
-            result = categorizer_obj.categorize_vulnerability_llama(description)
+            result = await categorizer_obj.categorize_vulnerability_llama(description)
         elif args.source == 'combined':
-            result = categorizer_obj.categorize_vulnerability_combined(description)
+            result = await categorizer_obj.categorize_vulnerability_combined(description)
+            await asyncio.sleep(1)  # Rate limit for combined API
         elif args.source == 'none':
             result = categorizer_obj.categorize_vulnerability_default(description)
             
         if result and len(result) > 0:
             categorization = result[0]  # Get first result dictionary
-            vuln["cwe_category"] = categorization["cwe_category"]
-            vuln["cwe_explanation"] = categorization["explanation"]
-            vuln["vendor"] = categorization["vendor"]
-            vuln["cause"] = categorization["cause"]
-            vuln["impact"] = categorization["impact"]
-            vuln.update(result[0])
+            vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
+            vuln["cwe_explanation"] = categorization.get("explanation", "")
+            vuln["cause"] = categorization.get("cause", "")
+            vuln["impact"] = categorization.get("impact", "")
         else:
-             # Fallback values if categorization fails
+            # Fallback values if categorization fails
             vuln["cwe_category"] = "UNKNOWN"
             vuln["cwe_explanation"] = ""
-            vuln["vendor"] = vuln.get("vendor", "Unknown")
             vuln["cause"] = ""
             vuln["impact"] = ""
             print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
             
         categorized_data.append(vuln)
 
+    print(f"Total categorized vulnerabilities: {len(categorized_data)}")
+
     print("Exporting data to", args.output_file)
     if args.export_format == 'csv':
-        if args.source == 'gemini':
-            exporter = csv_exporter.GeminiCsvExporter(args.output_file)
-        elif args.source == 'chatgpt':
-            exporter = csv_exporter.GptCsvExporter(args.output_file)
-        elif args.source == 'llama':
-            exporter = csv_exporter.LlamaCsvExporter(args.output_file)
-        elif args.source == 'combined' or args.source == 'none':
-            exporter = csv_exporter.BasicCsvExporter(args.output_file)
-        else:
-            print("Unsupported source for CSV export.")
-            return
+        exporter = csv_exporter.BasicCsvExporter(args.output_file)
         exporter.export(categorized_data)
     elif args.export_format == 'json':
         json_exporter.write_to_json(categorized_data, args.output_file)
@@ -236,4 +231,4 @@ def main():
     print("Process complete.")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
