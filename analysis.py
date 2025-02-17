@@ -4,7 +4,7 @@ import os
 import altair as alt
 
 # ***** CONFIGURATION *****
-CSV_FILE = "dataset-UAV-com.csv"  # Adjusted to use the DDSBuilder dataset
+CSV_FILE = "*.csv"  # Adjusted to use the DDSBuilder dataset
 OUTPUT_DIR = "analysis_results"
 # ***** END CONFIGURATION *****
 
