@@ -17,13 +17,14 @@ Este README.md está organizado nas seguintes seções:
 3.  **Pré-requisitos:** Lista os requisitos de software (Python, APIs).
 4.  **Instalação:** Instruções passo a passo para instalar a ferramenta.
 5.  **Configuração:** Instruções para configurar as chaves de API.
-6.  **Uso:** Explicação dos argumentos de linha de comando e exemplos de uso.
-7.  **Docker (Opcional):** Instruções para construir e executar a ferramenta usando Docker.
-8.  **Estrutura do Código:** Breve visão geral da organização do código-fonte.
-9.  **Licença:** Informações sobre a licença do projeto.
-10. **Contribuindo:** (Opcional) Instruções para quem quiser contribuir.
-11. **Contato:** (Opcional) Informações de contato dos autores.
-12. **Selos Considerados** (Adicionado,conforme as instruções).
+6.  **Uso:** Descreve como reproduzir os experimentos apresentados no artigo..
+7.  **Experimentos:** Explicação dos argumentos de linha de comando e exemplos de uso.
+8.  **Docker (Opcional):** Instruções para construir e executar a ferramenta usando Docker.
+9.  **Estrutura do Código:** Breve visão geral da organização do código-fonte.
+10. **Licença:** Informações sobre a licença do projeto.
+11. **Contribuindo:** (Opcional) Instruções para quem quiser contribuir.
+12. **Contato:** (Opcional) Informações de contato dos autores.
+13. **Selos Considerados** (Adicionado,conforme as instruções).
 
 ---
 
@@ -219,7 +220,7 @@ python src/main.py --source <ai_provider> --data-source <data_source> --vulners-
     - `--source default`
     - `--search-file`: Usa o arquivo `search_terms.txt`.
 
-**Experimentos**
+## Experimentos
 
 Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
