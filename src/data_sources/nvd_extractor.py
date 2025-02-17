@@ -21,6 +21,15 @@ def get_vulners_data(search_query, fields, skip):
             'total': 1
         }
     }
+def collect_data(search_params):
+    vulnerabilities = []
+    for param in search_params:
+            nvd_response = get_nvd_data(param)
+            if nvd_response and 'vulnerabilities' in nvd_response:
+                vulnerabilities.extend(nvd_response['vulnerabilities'])
+                print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities")
+                time.sleep(1)
+    return vulnerabilities
 
 def get_nvd_data(keyword):
     """Fetches vulnerability data from the NVD API"""

@@ -17,21 +17,10 @@ def collect_data(search_params, source):
     vulnerabilities = []
     
     if source in ['nvd', 'both']:
-        for param in search_params:
-            nvd_response = nvd_extractor.get_nvd_data(param)
-            if nvd_response and 'vulnerabilities' in nvd_response:
-                vulnerabilities.extend(nvd_response['vulnerabilities'])
-                print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities")
-                time.sleep(1)
+        vulnerabilities.extend(nvd_extractor.collect_data(search_params))
 
     if source in ['vulners', 'both']:
-        for param in search_params:
-            vulners_response = vulners_extractor.get_vulners_data(param)
-            if vulners_response and 'data' in vulners_response and 'search' in vulners_response['data']:
-                vulners_vulns = vulners_response['data']['search']
-                vulnerabilities.extend(vulners_vulns)
-                print(f"Found {len(vulners_vulns)} Vulners vulnerabilities")
-                time.sleep(1)
+        vulnerabilities.extend(vulners_extractor.get_data(search_params))
     
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
@@ -50,20 +39,8 @@ def preprocess_data(vulnerabilities, search_params):
     duplicates = []
     
     for vuln in vulnerabilities:
-        # Extract base information
-        if vuln.get("cve"):
-            description_full = next((desc.get("value", "") for desc in vuln["cve"].get("descriptions", []) 
-                                  if desc.get("lang") == "en"), "")
-            vuln_id = vuln["cve"].get("id")
-            source = "NVD"
-        else:
-            description_full = vuln.get("_source", {}).get("description", "")
-            vuln_id = vuln.get("_source", {}).get("id") or vuln.get("id")
-            source = "Vulners"
-        
-        # Normalize ID - remove prefixes and standardize format
-        normalized_id = (vuln_id or "").replace("NVD:", "").replace("CVELIST:", "")
-        normalized_id = normalized_id.replace("PRION:", "").replace("OSV:", "").strip()
+
+        description_full, normalized_id, source = normalizer.normalize_vulnerability_info(vuln)        
         
         if not normalized_id:
             print(f"Warning: Empty ID found for vulnerability with description: {description_full[:100]}...")
@@ -121,13 +98,16 @@ async def main():
         description="DDS Builder: Build a vulnerability dataset for DDS systems using an AI provider for categorization",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'none'], required=True,
+    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'default', 'none'], required=True,
                         help="Select the AI provider for categorization")
     parser.add_argument('--data-source', choices=['nvd', 'vulners', 'both'], required=True,
-                        help="Select the data source for vulnerabilities")
+                        help="Select the data source for vulnerabilities")  
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
     parser.add_argument('--llama-key', help="API key for Llama")
+    parser.add_argument('--default-key', help="API key for Default LLM")
+    parser.add_argument('--default-url', help="Base URL for Default LLM")
+    parser.add_argument('--default-model', help="Model for Default LLM")
     parser.add_argument('--vulners-key', help="API key for Vulners")
     parser.add_argument('--export-format', choices=['csv', 'json'], default='csv', help="Export format")
     parser.add_argument('--output-file', default="dataset/dds_vulnerabilities_AI.csv", help="Output file name")
@@ -160,7 +140,16 @@ async def main():
         elif not os.getenv("LLAMA_API_KEY"):
             print("Llama API key not found in environment.")
             return
-
+    
+    if args.source in ['default']:
+        if args.default_key and args.default_url and args.default_model:
+            os.environ["DEFAULT_API_URL"] = args.default_url
+            os.environ["DEFAULT_API_MODEL"] = args.default_model
+            os.environ["DEFAULT_API_KEY"] = args.default_key
+        elif not os.getenv("DEFAULT_API_KEY") or not os.getenv("DEFAULT_API_URL") or not os.getenv("DEFAULT_API_MODEL"):
+            print("Default API key, URL, or Model not found in environment.")
+            return
+        
     search_params = args.search_params or []
     if args.search_file:
         search_params.extend(read_search_params_from_file(args.search_file))
@@ -198,8 +187,10 @@ async def main():
         elif args.source == 'combined':
             result = await categorizer_obj.categorize_vulnerability_combined(description)
             await asyncio.sleep(1)  # Rate limit for combined API
+        elif args.source == 'default':
+            result = await categorizer_obj.categorize_vulnerability_default(description)
         elif args.source == 'none':
-            result = categorizer_obj.categorize_vulnerability_default(description)
+            result = categorizer_obj.categorize_vulnerability_none(description)
             
         if result and len(result) > 0:
             categorization = result[0]  # Get first result dictionary

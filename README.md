@@ -160,6 +160,9 @@ python src/main.py --source <ai_provider> --data-source <data_source> --vulners-
 - `--gemini-key`: Chave de API para o Google Gemini (se `--source` for `gemini` ou `combined`).
 - `--chatgpt-key`: Chave de API para o OpenAI ChatGPT (se `--source` for `chatgpt` ou `combined`).
 - `--llama-key`: Chave de API para o Llama (se `--source` for `llama` ou `combined`).
+- `--default-key`: Chave de API Default para LLM
+- `--default-url`: Base URL para Default LLM
+- `--default-model`: Modelo para Default LLM
 - `--vulners-key`: Chave de API para o Vulners (se `--data-source` for `vulners` ou `both`).
 - `--export-format`: Formato de exportação dos dados. Opções:
   - `csv`: Arquivo CSV (Comma-Separated Values).
@@ -210,6 +213,24 @@ python src/main.py --source <ai_provider> --data-source <data_source> --vulners-
     ```
 
     - `--source gemini`
+    - `--search-file`: Usa o arquivo `search_terms.txt`.
+4.  **Usando Default, Vulners (e. g.) e um arquivo com termos de busca:**
+
+    Crie um arquivo `search_terms.txt` com o seguinte conteúdo (um termo por linha):
+
+    ```
+    OpenDDS
+    RTI Connext DDS
+    Eclipse Cyclone DDS
+    ```
+
+    Execute:
+
+    ```bash
+    python src/main.py --source default --data-source vulners --search-file search_terms.txt --vulners-key <SUA_CHAVE_VULNERS> --default-key <SUA_CHAVE_DEFAULT> --default-model <MODELO_DEFAULT_LLM> --default-url <BASE_URL_DEFAULT> --output-file vulnerabilidades_default.csv
+    ```
+
+    - `--source default`
     - `--search-file`: Usa o arquivo `search_terms.txt`.
 
 ## Docker

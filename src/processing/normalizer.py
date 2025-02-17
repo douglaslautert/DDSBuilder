@@ -8,6 +8,24 @@ VENDORS = [
     "TiTAN DDS", "CoreDX", "Core DX", "Zhenrong DDS", "MilDDS", "Mil DDS", "GurumDDS", "InterCOM",
     "Fast DDS", "fastdds", "cyclonedds", "connext", "opendds"
 ]
+def normalize_vulnerability_info(vuln):
+            # Extract base information
+        if vuln.get("cve"):
+            description_full = next((desc.get("value", "") for desc in vuln["cve"].get("descriptions", []) 
+                                  if desc.get("lang") == "en"), "")
+            vuln_id = vuln["cve"].get("id")
+            source = "NVD"
+        else:
+            description_full = vuln.get("_source", {}).get("description", "")
+            vuln_id = vuln.get("_source", {}).get("id") or vuln.get("id")
+            source = "Vulners"
+        
+        # Normalize ID - remove prefixes and standardize format
+        normalized_id = (vuln_id or "").replace("NVD:", "").replace("CVELIST:", "")
+        normalized_id = normalized_id.replace("PRION:", "").replace("OSV:", "").strip()
+
+        return description_full, normalized_id, source
+
 # filter vulnerabilities from vulners.com
 def filtro_vulner(vulnerability, description_without_punct, truncated_description):
     vendor = 'UNKNOWN'
