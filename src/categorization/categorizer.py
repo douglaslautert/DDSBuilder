@@ -5,7 +5,6 @@ import google.generativeai as genai
 import os
 import asyncio
 from openai import OpenAI, AsyncOpenAI
-from transformers import pipeline
 
 
 # Safety configuration for Gemini
