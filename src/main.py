@@ -39,20 +39,8 @@ def preprocess_data(vulnerabilities, search_params):
     duplicates = []
     
     for vuln in vulnerabilities:
-        # Extract base information
-        if vuln.get("cve"):
-            description_full = next((desc.get("value", "") for desc in vuln["cve"].get("descriptions", []) 
-                                  if desc.get("lang") == "en"), "")
-            vuln_id = vuln["cve"].get("id")
-            source = "NVD"
-        else:
-            description_full = vuln.get("_source", {}).get("description", "")
-            vuln_id = vuln.get("_source", {}).get("id") or vuln.get("id")
-            source = "Vulners"
-        
-        # Normalize ID - remove prefixes and standardize format
-        normalized_id = (vuln_id or "").replace("NVD:", "").replace("CVELIST:", "")
-        normalized_id = normalized_id.replace("PRION:", "").replace("OSV:", "").strip()
+
+        description_full, normalized_id, source = normalizer.normalize_vulnerability_info(vuln)        
         
         if not normalized_id:
             print(f"Warning: Empty ID found for vulnerability with description: {description_full[:100]}...")
