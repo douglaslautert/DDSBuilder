@@ -127,7 +127,7 @@ async def main():
 
     print("Pré-processando dados...")
     data_preprocessor = DataPreprocessor(selected_normalizers)
-    normalized_data = data_preprocessor.preprocess_data(vulnerabilities, search_params)
+    normalized_data = data_preprocessor.preprocess_data(vulnerabilities, search_params, args.data_source)
     if not normalized_data:
         print("Nenhuma vulnerabilidade normalizada encontrada.")
         return
@@ -160,12 +160,16 @@ async def main():
             vuln["cwe_explanation"] = categorization.get("explanation", "")
             vuln["cause"] = categorization.get("cause", "")
             vuln["impact"] = categorization.get("impact", "")
+            vuln["description_normalized"] = description
+            vuln["explanation"] = categorization.get("explanation", "")
         else:
             # Fallback values if categorization fails
             vuln["cwe_category"] = "UNKNOWN"
             vuln["cwe_explanation"] = ""
             vuln["cause"] = ""
             vuln["impact"] = ""
+            vuln["description_normalized"] = description
+            vuln["explanation"] = ""
             print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
             
         categorized_data.append(vuln)

@@ -5,7 +5,7 @@ class DataPreprocessor:
     def __init__(self, normalizers):
         self.normalizers = normalizers
 
-    def preprocess_data(self, vulnerabilities, search_params):
+    def preprocess_data(self, vulnerabilities, search_params, source):
         """Normalize vulnerability data and handle duplicates with improved tracking."""
         normalized = []
         seen_ids = {}  # Change to dict to track sources
@@ -17,11 +17,9 @@ class DataPreprocessor:
                 description_full = next((desc.get("value", "") for desc in vuln["cve"].get("descriptions", []) 
                                       if desc.get("lang") == "en"), "")
                 vuln_id = vuln["cve"].get("id")
-                source = "NVD"
             else:
                 description_full = vuln.get("_source", {}).get("description", "")
                 vuln_id = vuln.get("_source", {}).get("id") or vuln.get("id")
-                source = "Vulners"
             
             # Normalize ID - remove prefixes and standardize format
             normalized_id = (vuln_id or "").replace("NVD:", "").replace("CVELIST:", "")
@@ -51,7 +49,7 @@ class DataPreprocessor:
 
             # Normalize data
             for normalizer in self.normalizers.values():
-                norm = normalizer.normalize_data(vuln, description_without_punct, truncated_description)
+                norm = normalizer.normalize_data(vuln, description_without_punct, truncated_description, source)
                 if norm:
                     # Assign vendor based on search parameters
                     norm['vendor'] = next((param for param in search_params if param.lower() in description_without_punct), "Unknown")
