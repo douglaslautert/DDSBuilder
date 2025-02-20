@@ -7,7 +7,8 @@ class BasicCsvExporter:
     fieldnames = [
         "id", "title", "description", "vendor",
         "cwe_category", "cwe_explanation", "cause", "impact",
-        "published", "cvss_score", "severity", "source", "description_normalized", "explanation"
+        "published", "cvss_score", "severity", "source", "description_normalized", "explanation",
+        "description_without_punct"  # Add this field to the fieldnames
     ]
     
     def __init__(self, filename):
@@ -39,33 +40,3 @@ class BasicCsvExporter:
         for item in data:
             if item.get('id') not in self.existing:
                 self.write_row(item)
-
-class GptCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-class GeminiCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-class LlamaCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-class GithubCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-def write_rows(data, filename="output.csv"):
-    exporter = BasicCsvExporter(filename)
-    for item in data:
-        if item.get('id') not in exporter.existing:
-            exporter.write_row(item)

@@ -1,27 +1,33 @@
 import os
 import argparse
-import re
-import time
+import yaml
 import asyncio
-from processing import normalizer
-import data_sources.nvd_extractor as nvd_extractor
-import data_sources.vulners_extractor as vulners_extractor
+from processing.data_preprocessor import DataPreprocessor
+from data_sources.load_data_source import load_data_sources
+from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
 from output import json_exporter, csv_exporter
-
 
 def collect_data(search_params, source):
     """
     Collect vulnerability data from specified sources.
     """
+    data_sources = load_data_sources()
+    print(f"Loaded data sources: {list(data_sources.keys())}")
     vulnerabilities = []
-    
-    if source in ['nvd', 'both']:
-        vulnerabilities.extend(nvd_extractor.collect_data(search_params))
 
-    if source in ['vulners', 'both']:
-        vulnerabilities.extend(vulners_extractor.get_data(search_params))
-    
+    if source in data_sources:
+        print(f"Collecting data from source: {source}")
+        vulnerabilities.extend(data_sources[source].collect_data(search_params))
+    elif source == 'both':
+        print("Collecting data from both sources")
+        for ds_name, ds in data_sources.items():
+            print(f"Collecting data from source: {ds_name}")
+            vulnerabilities.extend(ds.collect_data(search_params))
+    else:
+        print(f"Unsupported data source: {source}")
+        return []
+
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
     print("Sources breakdown:")
@@ -29,65 +35,8 @@ def collect_data(search_params, source):
     vulners_count = sum(1 for v in vulnerabilities if '_source' in v)
     print(f"- NVD: {nvd_count}")
     print(f"- Vulners: {vulners_count}")
-    
+
     return vulnerabilities
-
-def preprocess_data(vulnerabilities, search_params):
-    """Normalize vulnerability data and handle duplicates with improved tracking."""
-    normalized = []
-    seen_ids = {}  # Change to dict to track sources
-    duplicates = []
-    
-    for vuln in vulnerabilities:
-
-        description_full, normalized_id, source = normalizer.normalize_vulnerability_info(vuln)        
-        
-        if not normalized_id:
-            print(f"Warning: Empty ID found for vulnerability with description: {description_full[:100]}...")
-            continue
-            
-        # Check for duplicates with source awareness
-        if normalized_id in seen_ids:
-            # If same source, it's a true duplicate
-            if source == seen_ids[normalized_id]['source']:
-                duplicates.append({
-                    'id': normalized_id,
-                    'source': source,
-                    'reason': 'Same source duplicate'
-                })
-                continue
-                
-            # If different sources, keep both but log
-            print(f"Note: ID {normalized_id} found in both {source} and {seen_ids[normalized_id]['source']}")
-        
-        # Process description
-        truncated_description = description_full[:300] if description_full else ""
-        description_without_punct = re.sub(r'[^\w\s]', '', truncated_description).lower() if truncated_description else ""
-
-        # Normalize data
-        norm = normalizer.normalize_data(vuln, description_without_punct, truncated_description)
-        
-        if norm:
-            # Assign vendor based on search parameters
-            norm['vendor'] = next((param for param in search_params if param.lower() in description_without_punct), "Unknown")
-            normalized.append(norm)
-            seen_ids[normalized_id] = {
-                'source': source,
-                'index': len(normalized) - 1
-            }
-    
-    # Print detailed statistics
-    print("\nDuplication Statistics:")
-    print(f"Total vulnerabilities found: {len(vulnerabilities)}")
-    print(f"Unique vulnerabilities after normalization: {len(normalized)}")
-    print(f"Duplicates removed: {len(duplicates)}")
-    
-    if duplicates:
-        print("\nDuplicate Details:")
-        for dup in duplicates:
-            print(f"- {dup['id']} from {dup['source']}: {dup['reason']}")
-            
-    return normalized
 
 def read_search_params_from_file(file_path):
     with open(file_path, 'r') as file:
@@ -147,7 +96,7 @@ async def main():
             os.environ["DEFAULT_API_MODEL"] = args.default_model
             os.environ["DEFAULT_API_KEY"] = args.default_key
         elif not os.getenv("DEFAULT_API_KEY") or not os.getenv("DEFAULT_API_URL") or not os.getenv("DEFAULT_API_MODEL"):
-            print("Default API key, URL, or Model not found in environment.")
+            print("Default API key, URL, ou Model não encontrado no ambiente.")
             return
         
     search_params = args.search_params or []
@@ -155,22 +104,35 @@ async def main():
         search_params.extend(read_search_params_from_file(args.search_file))
 
     if not search_params:
-        print("No search parameters provided.")
+        print("Nenhum parâmetro de pesquisa fornecido.")
         return
 
-    print("Collecting vulnerability data...")
+    # Load configuration
+    with open('src/config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+
+    # Load data sources
+    data_sources = load_data_sources()
+    selected_data_sources = {key: data_sources[key] for key in config['data_sources'] if key in data_sources}
+
+    # Load normalizers
+    normalizers = load_normalizers()
+    selected_normalizers = {key: normalizers[key] for key in config['normalizers'] if key in normalizers}
+
+    print("Coletando dados de vulnerabilidade...")
     vulnerabilities = collect_data(search_params, args.data_source)
     if not vulnerabilities:
-        print("No vulnerability data collected.")
+        print("Nenhum dado de vulnerabilidade coletado.")
         return
 
-    print("Preprocessing data...")
-    normalized_data = preprocess_data(vulnerabilities, search_params)
+    print("Pré-processando dados...")
+    data_preprocessor = DataPreprocessor(selected_normalizers)
+    normalized_data = data_preprocessor.preprocess_data(vulnerabilities, search_params)
     if not normalized_data:
-        print("No normalized vulnerabilities found.")
+        print("Nenhuma vulnerabilidade normalizada encontrada.")
         return
 
-    print("Categorizing vulnerabilities...")
+    print("Categorizando vulnerabilidades...")
     categorizer_obj = Categorizer()
     categorized_data = []
     
@@ -188,7 +150,7 @@ async def main():
             result = await categorizer_obj.categorize_vulnerability_combined(description)
             await asyncio.sleep(1)  # Rate limit for combined API
         elif args.source == 'default':
-            result = await categorizer_obj.categorize_vulnerability_default(description)
+            result = categorizer_obj.categorize_vulnerability_default(description)
         elif args.source == 'none':
             result = categorizer_obj.categorize_vulnerability_none(description)
             
@@ -210,16 +172,16 @@ async def main():
 
     print(f"Total categorized vulnerabilities: {len(categorized_data)}")
 
-    print("Exporting data to", args.output_file)
+    print("Exportando dados para", args.output_file)
     if args.export_format == 'csv':
         exporter = csv_exporter.BasicCsvExporter(args.output_file)
         exporter.export(categorized_data)
     elif args.export_format == 'json':
         json_exporter.write_to_json(categorized_data, args.output_file)
     else:
-        print("Unsupported export format.")
+        print("Formato de exportação não suportado.")
 
-    print("Process complete.")
+    print("Processo completo.")
 
 if __name__ == "__main__":
     asyncio.run(main())
