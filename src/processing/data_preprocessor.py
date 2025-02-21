@@ -12,51 +12,15 @@ class DataPreprocessor:
         duplicates = []
         
         for vuln in vulnerabilities:
-            # Extract base information
-            if vuln.get("cve"):
-                description_full = next((desc.get("value", "") for desc in vuln["cve"].get("descriptions", []) 
-                                      if desc.get("lang") == "en"), "")
-                vuln_id = vuln["cve"].get("id")
-            else:
-                description_full = vuln.get("_source", {}).get("description", "")
-                vuln_id = vuln.get("_source", {}).get("id") or vuln.get("id")
-            
-            # Normalize ID - remove prefixes and standardize format
-            normalized_id = (vuln_id or "").replace("NVD:", "").replace("CVELIST:", "")
-            normalized_id = normalized_id.replace("PRION:", "").replace("OSV:", "").strip()
-            
-            if not normalized_id:
-                print(f"Warning: Empty ID found for vulnerability with description: {description_full[:100]}...")
-                continue
-                
-            # Check for duplicates with source awareness
-            if normalized_id in seen_ids:
-                # If same source, it's a true duplicate
-                if source == seen_ids[normalized_id]['source']:
-                    duplicates.append({
-                        'id': normalized_id,
-                        'source': source,
-                        'reason': 'Same source duplicate'
-                    })
-                    continue
-                    
-                # If different sources, keep both but log
-                print(f"Note: ID {normalized_id} found in both {source} and {seen_ids[normalized_id]['source']}")
-            
-            # Process description
-            truncated_description = description_full[:300] if description_full else ""
-            description_without_punct = re.sub(r'[^\w\s]', '', truncated_description).lower() if truncated_description else ""
-
             # Normalize data
             for normalizer in self.normalizers.values():
-                norm = normalizer.normalize_data(vuln, description_without_punct, truncated_description, source)
+                norm = normalizer.normalize_data(vuln, source)
                 if norm:
                     # Assign vendor based on search parameters
-                    norm['vendor'] = next((param for param in search_params if param.lower() in description_without_punct), "Unknown")
-                    norm['description_without_punct'] = description_without_punct  # Ensure this field is present
+                    norm['vendor'] = next((param for param in search_params if param.lower() in norm['description_without_punct']), "Unknown")
                     normalized.append(norm)
-                    seen_ids[normalized_id] = {
-                        'source': source,
+                    seen_ids[norm['id']] = {
+                        'source': norm['source'],
                         'index': len(normalized) - 1
                     }
                     break

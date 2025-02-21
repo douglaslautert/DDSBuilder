@@ -9,7 +9,8 @@ class NvdExtractor(DataSourceBase):
             print(f"Collecting NVD data for search parameter: {param}")
             nvd_response = self.get_nvd_data(param)
             if nvd_response and 'vulnerabilities' in nvd_response:
-                vulnerabilities.extend(nvd_response['vulnerabilities'])
+                for vuln in nvd_response['vulnerabilities']:
+                    vulnerabilities.append(vuln)
                 print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities for {param}")
             else:
                 print(f"No vulnerabilities found for {param}")
@@ -30,3 +31,15 @@ class NvdExtractor(DataSourceBase):
             print(f"NVD API response status code after retry: {response.status_code}")
         response.raise_for_status()
         return response.json()
+
+    def normalize_data(self, vulnerability):
+        cve = vulnerability.get('cve', {})
+        metrics = cve.get('metrics', {}).get('cvssMetricV31', [{}])[0].get('cvssData', {})
+        return {
+            'id': cve.get('id'),
+            'description': next((desc.get('value') for desc in cve.get('descriptions', []) if desc.get('lang') == 'en'), ''),
+            'published': cve.get('published'),
+            'cvss_score': metrics.get('baseScore'),
+            'severity': metrics.get('baseSeverity'),
+            'source': 'nvd'
+        }

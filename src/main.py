@@ -22,7 +22,6 @@ def collect_data(search_params, source):
     elif source == 'both':
         print("Collecting data from both sources")
         for ds_name, ds in data_sources.items():
-            print(f"Collecting data from source: {ds_name}")
             vulnerabilities.extend(ds.collect_data(search_params))
     else:
         print(f"Unsupported data source: {source}")
@@ -31,8 +30,8 @@ def collect_data(search_params, source):
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
     print("Sources breakdown:")
-    nvd_count = sum(1 for v in vulnerabilities if 'cve' in v)
-    vulners_count = sum(1 for v in vulnerabilities if '_source' in v)
+    nvd_count = sum(1 for v in vulnerabilities if v.get('source') == 'nvd')
+    vulners_count = sum(1 for v in vulnerabilities if v.get('source') == 'vulners')
     print(f"- NVD: {nvd_count}")
     print(f"- Vulners: {vulners_count}")
 
@@ -115,19 +114,28 @@ async def main():
     data_sources = load_data_sources()
     selected_data_sources = {key: data_sources[key] for key in config['data_sources'] if key in data_sources}
 
-    # Load normalizers
-    normalizers = load_normalizers()
-    selected_normalizers = {key: normalizers[key] for key in config['normalizers'] if key in normalizers}
-
     print("Coletando dados de vulnerabilidade...")
-    vulnerabilities = collect_data(search_params, args.data_source)
+    vulnerabilities = []
+    if args.data_source == 'both':
+        for source in ['nvd', 'vulners']:
+            vulnerabilities.extend(collect_data(search_params, source))
+    else:
+        vulnerabilities = collect_data(search_params, args.data_source)
+    
     if not vulnerabilities:
         print("Nenhum dado de vulnerabilidade coletado.")
         return
+    
+    # Load normalizers
+    normalizers = load_normalizers()
 
     print("Pré-processando dados...")
-    data_preprocessor = DataPreprocessor(selected_normalizers)
-    normalized_data = data_preprocessor.preprocess_data(vulnerabilities, search_params, args.data_source)
+    data_preprocessor = DataPreprocessor(normalizers)
+    normalized_data = []
+    for source_name in selected_data_sources:
+        source = selected_data_sources[source_name]
+        normalized_data.extend(data_preprocessor.preprocess_data(vulnerabilities, search_params, source))
+    
     if not normalized_data:
         print("Nenhuma vulnerabilidade normalizada encontrada.")
         return
@@ -149,8 +157,6 @@ async def main():
         elif args.source == 'combined':
             result = await categorizer_obj.categorize_vulnerability_combined(description)
             await asyncio.sleep(1)  # Rate limit for combined API
-        elif args.source == 'default':
-            result = categorizer_obj.categorize_vulnerability_default(description)
         elif args.source == 'none':
             result = categorizer_obj.categorize_vulnerability_none(description)
             

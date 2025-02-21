@@ -28,7 +28,7 @@ class BasicCsvExporter:
 
     def write_row(self, row):
         if 'id' not in row or not row['id']:
-            print("Warning: Row without 'id':", row)
+            print("Warning: Row without 'id':")
             return
         # Append row to file.
         with open(self.filename, 'a', newline='', encoding="utf-8") as f:

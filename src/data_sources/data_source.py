@@ -1,7 +1,10 @@
-class DataSourceBase:
+from abc import ABC, abstractmethod
+
+class DataSourceBase(ABC):
+    @abstractmethod
     def collect_data(self, search_params):
-        """
-        Collect vulnerability data based on search parameters.
-        This method should be implemented by all data sources.
-        """
-        raise NotImplementedError("collect_data method must be implemented by the data source.")
+        pass
+
+    @abstractmethod
+    def normalize_data(self, vulnerability):
+        pass

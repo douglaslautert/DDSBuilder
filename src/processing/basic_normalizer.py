@@ -2,15 +2,17 @@ import re
 from .normalizer import NormalizerBase
 
 class BasicNormalizer(NormalizerBase):
-    def normalize_data(self, vulnerability, description_without_punct, truncated_description, source):
-        # Implement the normalization logic here
-        normalized_data = {
-            "id": vulnerability.get("cve", {}).get("id") or vulnerability.get("_source", {}).get("id"),
-            "description": truncated_description,
-            "description_without_punct": description_without_punct,
-            "published": vulnerability.get("publishedDate") or vulnerability.get("_source", {}).get("published"),
-            "cvss_score": vulnerability.get("impact", {}).get("baseMetricV3", {}).get("cvssV3", {}).get("baseScore") or vulnerability.get("_source", {}).get("cvss", {}).get("score"),
-            "severity": vulnerability.get("impact", {}).get("baseMetricV3", {}).get("cvssV3", {}).get("baseSeverity") or vulnerability.get("_source", {}).get("cvss", {}).get("severity"),
-            "source": source  # Use the source parameter
-        }
+    def normalize_data(self, vulnerability, source):
+        # Normalize data based on the source
+        normalized_data = source.normalize_data(vulnerability)
+        
+        # Process description
+        truncated_description = normalized_data['description'][:300] if normalized_data['description'] else ""
+        description_without_punct = re.sub(r'[^\w\s]', '', truncated_description).lower() if truncated_description else ""
+
+        normalized_data.update({
+            'description': truncated_description,
+            'description_without_punct': description_without_punct
+        })
+
         return normalized_data
