@@ -238,7 +238,7 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
   2.  **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
 
       ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_DDS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/dds_vulnerabilities.csv
+        python src/main.py --source combined --data-source both --search-file search_params/search_params_DDS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/dds_vulnerabilities.csv
       ```
 
       - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.

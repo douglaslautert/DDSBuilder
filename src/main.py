@@ -9,14 +9,14 @@ from processing.data_preprocessor import DataPreprocessor
 from data_sources.load_data_source import load_data_sources
 from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
-
+from output.load_exporter import load_exporters
 
 # Load configuration
 def load_config():
     with open('src/config.yaml', 'r') as file:
         return yaml.safe_load(file)
 
-async def collect_data(search_params, source, config):
+async def collect_data(search_params, sources, config):
     """
     Collect vulnerability data from specified sources.
     """
@@ -24,18 +24,19 @@ async def collect_data(search_params, source, config):
     print(f"Loaded data sources: {list(data_sources.keys())}")
     vulnerabilities = []
 
-    if source in data_sources:
-        print(f"Collecting data from source: {source}")
-        vulnerabilities.extend(await data_sources[source].collect_data(search_params))
-    elif source == 'both':
+    if 'both' in sources:
         print("Collecting data from both sources")
         tasks = [data_sources[ds_name].collect_data(search_params) for ds_name in data_sources]
         results = await asyncio.gather(*tasks)
         for result in results:
             vulnerabilities.extend(result)
     else:
-        print(f"Unsupported data source: {source}")
-        return []
+        for source in sources:
+            if source in data_sources:
+                print(f"Collecting data from source: {source}")
+                vulnerabilities.extend(await data_sources[source].collect_data(search_params))
+            else:
+                print(f"Unsupported data source: {source}")
 
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
@@ -64,8 +65,8 @@ async def main():
 
     parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'default', 'none'], required=True,
                         help="Select the AI provider for categorization")
-    parser.add_argument('--data-source', choices=data_source_choices, required=True,
-                        help="Select the data source for vulnerabilities")  
+    parser.add_argument('--data-source', choices=data_source_choices, nargs='+', required=True,
+                        help="Select the data source(s) for vulnerabilities")  
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
     parser.add_argument('--llama-key', help="API key for Llama")
@@ -137,11 +138,7 @@ async def main():
     selected_data_sources = {key: data_sources[key] for key in config['data_sources'] if key in data_sources}
 
     print("Collecting vulnerability data...")
-    vulnerabilities = []
-    if args.data_source == 'both':
-        vulnerabilities = await collect_data(search_params, 'both', config)
-    else:
-        vulnerabilities = await collect_data(search_params, args.data_source, config)
+    vulnerabilities = await collect_data(search_params, args.data_source, config)
     
     if not vulnerabilities:
         print("No vulnerability data collected.")
@@ -161,57 +158,57 @@ async def main():
         print("No normalized vulnerabilities found.")
         return
 
-    print("Vulnerability categorizing...")
-    categorizer_obj = Categorizer()
     categorized_data = []
-    
-    for vuln in normalized_data:
-        description = vuln.get("description", "")
-        result = None
+    if args.source != 'none':
+        print("Vulnerability categorizing...")
+        categorizer_obj = Categorizer()
         
-        if args.source == 'gemini':
-            result = await categorizer_obj.categorize_vulnerability_gemini(description)
-        elif args.source == 'chatgpt':
-            result = await categorizer_obj.categorize_vulnerability_gpt(description)
-        elif args.source == 'llama':
-            result = await categorizer_obj.categorize_vulnerability_llama(description)
-        elif args.source == 'combined':
-            result = await categorizer_obj.categorize_vulnerability_combined(description)
-            await asyncio.sleep(1)  # Rate limit for combined API
-        elif args.source == 'none':
-            result = categorizer_obj.categorize_vulnerability_none(description)
+        for vuln in normalized_data:
+            description = vuln.get("description", "")
+            result = None
             
-        if result and len(result) > 0:
-            categorization = result[0]  # Get first result dictionary
-            vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
-            vuln["cwe_explanation"] = categorization.get("explanation", "")
-            vuln["cause"] = categorization.get("cause", "")
-            vuln["impact"] = categorization.get("impact", "")
-            vuln["description_normalized"] = description
-            vuln["explanation"] = categorization.get("explanation", "")
-        else:
-            # Fallback values if categorization fails
-            vuln["cwe_category"] = "UNKNOWN"
-            vuln["cwe_explanation"] = ""
-            vuln["cause"] = ""
-            vuln["impact"] = ""
-            vuln["description_normalized"] = description
-            vuln["explanation"] = ""
-            print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
-            
-        categorized_data.append(vuln)
+            if args.source == 'gemini':
+                result = await categorizer_obj.categorize_vulnerability_gemini(description)
+            elif args.source == 'chatgpt':
+                result = await categorizer_obj.categorize_vulnerability_gpt(description)
+            elif args.source == 'llama':
+                result = await categorizer_obj.categorize_vulnerability_llama(description)
+            elif args.source == 'combined':
+                result = await categorizer_obj.categorize_vulnerability_combined(description)
+                
+            if result and len(result) > 0:
+                categorization = result[0]  # Get first result dictionary
+                vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
+                vuln["cwe_explanation"] = categorization.get("explanation", "")
+                vuln["cause"] = categorization.get("cause", "")
+                vuln["impact"] = categorization.get("impact", "")
+                vuln["description_normalized"] = description
+                vuln["explanation"] = categorization.get("explanation", "")
+            else:
+                # Fallback values if categorization fails
+                vuln["cwe_category"] = "UNKNOWN"
+                vuln["cwe_explanation"] = ""
+                vuln["cause"] = ""
+                vuln["impact"] = ""
+                vuln["description_normalized"] = description
+                vuln["explanation"] = ""
+                print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
+                
+            categorized_data.append(vuln)
+    else:
+        categorized_data = normalized_data
 
     print(f"Total categorized vulnerabilities: {len(categorized_data)}")
 
     # Load exporters
-    exporters = load_exporters(config)
+    exporters = load_exporters(config, args.output_file)
     if args.export_format not in exporters:
         print(f"Unsupported export format: {args.export_format}")
         return
 
     print("Exporting data to", args.output_file)
     exporter = exporters[args.export_format]
-    exporter.export(categorized_data, args.output_file)
+    exporter.export(categorized_data)
 
     # End measuring time and resources
     end_time = time.time()
