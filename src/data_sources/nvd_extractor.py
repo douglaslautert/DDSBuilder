@@ -1,5 +1,5 @@
 import requests
-import time
+import asyncio
 from .data_source import DataSourceBase
 
 class NvdExtractor(DataSourceBase):

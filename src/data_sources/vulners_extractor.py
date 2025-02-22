@@ -1,6 +1,5 @@
 import requests
 import json
-import time
 import os
 from .data_source import DataSourceBase
 
