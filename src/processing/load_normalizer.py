@@ -2,7 +2,7 @@ import importlib
 import os
 from .normalizer import NormalizerBase
 
-def load_normalizers():
+def load_normalizers(config):
     normalizers = {}
     for file in os.listdir(os.path.dirname(__file__)):
         if file.endswith("_normalizer.py"):

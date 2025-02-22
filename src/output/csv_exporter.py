@@ -1,8 +1,14 @@
 import csv
 import os
-import categorization.categorizer as cat
+from .data_exporter import DataExporterBase
 
-class BasicCsvExporter:
+class BasicCsvExporter(DataExporterBase):
+    def export(self, data, filename):
+        fieldnames = data[0].keys() if data else []
+        with open(filename, mode='w', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(data)
     # Adjust fieldnames as needed by your vulnerability dictionary.
     fieldnames = [
         "id", "title", "description", "vendor",

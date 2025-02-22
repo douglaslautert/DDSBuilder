@@ -9,7 +9,6 @@ from processing.data_preprocessor import DataPreprocessor
 from data_sources.load_data_source import load_data_sources
 from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
-from output import json_exporter, csv_exporter
 
 
 # Load configuration
@@ -17,11 +16,11 @@ def load_config():
     with open('src/config.yaml', 'r') as file:
         return yaml.safe_load(file)
 
-async def collect_data(search_params, source):
+async def collect_data(search_params, source, config):
     """
     Collect vulnerability data from specified sources.
     """
-    data_sources = load_data_sources()
+    data_sources = load_data_sources(config)
     print(f"Loaded data sources: {list(data_sources.keys())}")
     vulnerabilities = []
 
@@ -41,10 +40,9 @@ async def collect_data(search_params, source):
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
     print("Sources breakdown:")
-    nvd_count = sum(1 for v in vulnerabilities if v.get('source') == 'nvd')
-    vulners_count = sum(1 for v in vulnerabilities if v.get('source') == 'vulners')
-    print(f"- NVD: {nvd_count}")
-    print(f"- Vulners: {vulners_count}")
+    for ds_name in data_sources:
+        count = sum(1 for v in vulnerabilities if v.get('source') == ds_name)
+        print(f"- {ds_name.capitalize()}: {count}")
 
     return vulnerabilities
 
@@ -62,6 +60,7 @@ async def main():
     config = load_config()
 
     data_source_choices = config['data_sources'] + ['both']
+    export_format_choices = config['exporters']
 
     parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'default', 'none'], required=True,
                         help="Select the AI provider for categorization")
@@ -74,7 +73,8 @@ async def main():
     parser.add_argument('--default-url', help="Base URL for Default LLM")
     parser.add_argument('--default-model', help="Model for Default LLM")
     parser.add_argument('--vulners-key', help="API key for Vulners")
-    parser.add_argument('--export-format', choices=['csv', 'json'], default='csv', help="Export format")
+    parser.add_argument('--new-source-key', help="API key for New Source")  # Add new source key argument
+    parser.add_argument('--export-format', choices=export_format_choices, required=True, help="Export format")
     parser.add_argument('--output-file', default="dataset/dds_vulnerabilities_AI.csv", help="Output file name")
     parser.add_argument('--search-params', nargs='*', help="Search parameters for vulnerabilities")
     parser.add_argument('--search-file', help="Path to a file containing search parameters")
@@ -83,6 +83,8 @@ async def main():
     # Prioritize command-line arguments over environment variables
     if args.vulners_key:
         os.environ["VULNERS_API_KEY"] = args.vulners_key
+    if args.new_source_key:
+        os.environ["NEW_SOURCE_API_KEY"] = args.new_source_key  # Set new source key in environment
     os.environ["CSV_OUTPUT_FILE"] = args.output_file
 
     if args.source in ['gemini', 'combined']:
@@ -131,22 +133,22 @@ async def main():
     start_memory = process.memory_info().rss
 
     # Load data sources
-    data_sources = load_data_sources()
+    data_sources = load_data_sources(config)
     selected_data_sources = {key: data_sources[key] for key in config['data_sources'] if key in data_sources}
 
     print("Collecting vulnerability data...")
     vulnerabilities = []
     if args.data_source == 'both':
-        vulnerabilities = await collect_data(search_params, 'both')
+        vulnerabilities = await collect_data(search_params, 'both', config)
     else:
-        vulnerabilities = await collect_data(search_params, args.data_source)
+        vulnerabilities = await collect_data(search_params, args.data_source, config)
     
     if not vulnerabilities:
         print("No vulnerability data collected.")
         return
     
     # Load normalizers
-    normalizers = load_normalizers()
+    normalizers = load_normalizers(config)
 
     print("Preprocessing data...")
     data_preprocessor = DataPreprocessor(normalizers)
@@ -175,6 +177,7 @@ async def main():
             result = await categorizer_obj.categorize_vulnerability_llama(description)
         elif args.source == 'combined':
             result = await categorizer_obj.categorize_vulnerability_combined(description)
+            await asyncio.sleep(1)  # Rate limit for combined API
         elif args.source == 'none':
             result = categorizer_obj.categorize_vulnerability_none(description)
             
@@ -200,14 +203,15 @@ async def main():
 
     print(f"Total categorized vulnerabilities: {len(categorized_data)}")
 
+    # Load exporters
+    exporters = load_exporters(config)
+    if args.export_format not in exporters:
+        print(f"Unsupported export format: {args.export_format}")
+        return
+
     print("Exporting data to", args.output_file)
-    if args.export_format == 'csv':
-        exporter = csv_exporter.BasicCsvExporter(args.output_file)
-        exporter.export(categorized_data)
-    elif args.export_format == 'json':
-        json_exporter.write_to_json(categorized_data, args.output_file)
-    else:
-        print("Unsupported export format.")
+    exporter = exporters[args.export_format]
+    exporter.export(categorized_data, args.output_file)
 
     # End measuring time and resources
     end_time = time.time()

@@ -2,7 +2,7 @@ import importlib
 import os
 from .data_source import DataSourceBase
 
-def load_data_sources():
+def load_data_sources(config):
     data_sources = {}
     for file in os.listdir(os.path.dirname(__file__)):
         if file.endswith("_extractor.py"):
