@@ -1,6 +1,5 @@
 data_sources:
   - nvd
-  - vulners
 
 normalizers:
   - basic

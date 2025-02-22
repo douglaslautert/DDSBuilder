@@ -11,6 +11,12 @@ from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
 from output import json_exporter, csv_exporter
 
+
+# Load configuration
+def load_config():
+    with open('src/config.yaml', 'r') as file:
+        return yaml.safe_load(file)
+
 async def collect_data(search_params, source):
     """
     Collect vulnerability data from specified sources.
@@ -51,9 +57,15 @@ async def main():
         description="DDS Builder: Build a vulnerability dataset for DDS systems using an AI provider for categorization",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
+
+    # Load configuration to dynamically add data source choices
+    config = load_config()
+
+    data_source_choices = config['data_sources'] + ['both']
+
     parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'default', 'none'], required=True,
                         help="Select the AI provider for categorization")
-    parser.add_argument('--data-source', choices=['nvd', 'vulners', 'both'], required=True,
+    parser.add_argument('--data-source', choices=data_source_choices, required=True,
                         help="Select the data source for vulnerabilities")  
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
@@ -117,10 +129,6 @@ async def main():
     print(f"Program started at: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
     process = psutil.Process(os.getpid())
     start_memory = process.memory_info().rss
-
-    # Load configuration
-    with open('src/config.yaml', 'r') as file:
-        config = yaml.safe_load(file)
 
     # Load data sources
     data_sources = load_data_sources()
