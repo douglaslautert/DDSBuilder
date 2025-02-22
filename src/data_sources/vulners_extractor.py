@@ -5,19 +5,18 @@ import os
 from .data_source import DataSourceBase
 
 class VulnersExtractor(DataSourceBase):
-    def collect_data(self, search_params):
+    async def collect_data(self, search_params):
         vulnerabilities = []
         for param in search_params:
-            vulners_response = self.get_vulners_data(param)
+            vulners_response = await self.get_vulners_data(param)  # Adicione await aqui
             if vulners_response and 'data' in vulners_response and 'search' in vulners_response['data']:
                 vulners_vulns = vulners_response['data']['search']
                 for vuln in vulners_vulns:
                     vulnerabilities.append(vuln)
                 print(f"Found {len(vulners_vulns)} Vulners vulnerabilities for {param}")
-                time.sleep(1)
         return vulnerabilities
 
-    def get_vulners_data(self, query, skip=0):
+    async def get_vulners_data(self, query, skip=0):
         base_url = "https://vulners.com/api/v3/search/search"
         api_key = os.getenv("VULNERS_API_KEY")
         data = {

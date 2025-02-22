@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 class DataSourceBase(ABC):
     @abstractmethod
-    def collect_data(self, search_params):
+    async def collect_data(self, search_params):
         pass
 
     @abstractmethod

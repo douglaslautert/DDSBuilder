@@ -1,14 +1,17 @@
 import os
 import argparse
 import yaml
+import psutil
 import asyncio
+import time
+from datetime import datetime
 from processing.data_preprocessor import DataPreprocessor
 from data_sources.load_data_source import load_data_sources
 from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
 from output import json_exporter, csv_exporter
 
-def collect_data(search_params, source):
+async def collect_data(search_params, source):
     """
     Collect vulnerability data from specified sources.
     """
@@ -18,11 +21,13 @@ def collect_data(search_params, source):
 
     if source in data_sources:
         print(f"Collecting data from source: {source}")
-        vulnerabilities.extend(data_sources[source].collect_data(search_params))
+        vulnerabilities.extend(await data_sources[source].collect_data(search_params))
     elif source == 'both':
         print("Collecting data from both sources")
-        for ds_name, ds in data_sources.items():
-            vulnerabilities.extend(ds.collect_data(search_params))
+        tasks = [data_sources[ds_name].collect_data(search_params) for ds_name in data_sources]
+        results = await asyncio.gather(*tasks)
+        for result in results:
+            vulnerabilities.extend(result)
     else:
         print(f"Unsupported data source: {source}")
         return []
@@ -103,8 +108,15 @@ async def main():
         search_params.extend(read_search_params_from_file(args.search_file))
 
     if not search_params:
-        print("Nenhum parâmetro de pesquisa fornecido.")
+        print("No search parameters provided.")
         return
+
+    # Start measuring time and resources
+    start_time = time.time()
+    start_datetime = datetime.now()
+    print(f"Program started at: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+    process = psutil.Process(os.getpid())
+    start_memory = process.memory_info().rss
 
     # Load configuration
     with open('src/config.yaml', 'r') as file:
@@ -114,22 +126,21 @@ async def main():
     data_sources = load_data_sources()
     selected_data_sources = {key: data_sources[key] for key in config['data_sources'] if key in data_sources}
 
-    print("Coletando dados de vulnerabilidade...")
+    print("Collecting vulnerability data...")
     vulnerabilities = []
     if args.data_source == 'both':
-        for source in ['nvd', 'vulners']:
-            vulnerabilities.extend(collect_data(search_params, source))
+        vulnerabilities = await collect_data(search_params, 'both')
     else:
-        vulnerabilities = collect_data(search_params, args.data_source)
+        vulnerabilities = await collect_data(search_params, args.data_source)
     
     if not vulnerabilities:
-        print("Nenhum dado de vulnerabilidade coletado.")
+        print("No vulnerability data collected.")
         return
     
     # Load normalizers
     normalizers = load_normalizers()
 
-    print("Pré-processando dados...")
+    print("Preprocessing data...")
     data_preprocessor = DataPreprocessor(normalizers)
     normalized_data = []
     for source_name in selected_data_sources:
@@ -137,10 +148,10 @@ async def main():
         normalized_data.extend(data_preprocessor.preprocess_data(vulnerabilities, search_params, source))
     
     if not normalized_data:
-        print("Nenhuma vulnerabilidade normalizada encontrada.")
+        print("No normalized vulnerabilities found.")
         return
 
-    print("Categorizando vulnerabilidades...")
+    print("Vulnerability categorizing...")
     categorizer_obj = Categorizer()
     categorized_data = []
     
@@ -156,7 +167,6 @@ async def main():
             result = await categorizer_obj.categorize_vulnerability_llama(description)
         elif args.source == 'combined':
             result = await categorizer_obj.categorize_vulnerability_combined(description)
-            await asyncio.sleep(1)  # Rate limit for combined API
         elif args.source == 'none':
             result = categorizer_obj.categorize_vulnerability_none(description)
             
@@ -182,16 +192,24 @@ async def main():
 
     print(f"Total categorized vulnerabilities: {len(categorized_data)}")
 
-    print("Exportando dados para", args.output_file)
+    print("Exporting data to", args.output_file)
     if args.export_format == 'csv':
         exporter = csv_exporter.BasicCsvExporter(args.output_file)
         exporter.export(categorized_data)
     elif args.export_format == 'json':
         json_exporter.write_to_json(categorized_data, args.output_file)
     else:
-        print("Formato de exportação não suportado.")
+        print("Unsupported export format.")
 
-    print("Processo completo.")
+    # End measuring time and resources
+    end_time = time.time()
+    end_datetime = datetime.now()
+    print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+    end_memory = process.memory_info().rss
+
+    print("Process completed.")
+    print(f"Total execution time: {end_time - start_time:.2f} seconds")
+    print(f"Memory used: {(end_memory - start_memory) / (1024 * 1024):.2f} MB")
 
 if __name__ == "__main__":
     asyncio.run(main())
