@@ -217,41 +217,41 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
-      - Crie um arquivo (ex: `search_params_DDS.txt`) contendo os termos de busca relacionados a DDS (ou utilize o arquivo que está no diretório search_params/search_params_DDS.txt):
+     - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
+     - Crie um arquivo (ex: `search_params_DDS.txt`) contendo os termos de busca relacionados a DDS (ou utilize o arquivo que está no diretório search_params/search_params_DDS.txt):
 
-        ```
-        Data Distribution Service (DDS)
-        FastDDS
-        RTI Connext DDS
-        Open DDS
-        Cyclone DDS
-        IntercomDDS
-        Coredx DDS
-        Gurum DDS
-        OpenSplice DDS
-        MilDDS
-        ```
+       ```
+       Data Distribution Service (DDS)
+       FastDDS
+       RTI Connext DDS
+       Open DDS
+       Cyclone DDS
+       IntercomDDS
+       Coredx DDS
+       Gurum DDS
+       OpenSplice DDS
+       MilDDS
+       ```
 
-  2.  **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
+  2. **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
 
-      ```bash
-        python src/main.py --source combined --data-source both --search-file search_params/search_params_DDS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/dds_vulnerabilities.csv
-      ```
+     ```bash
+       python src/main.py --source combined --data-source both --search-file search_params/search_params_DDS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/dds_vulnerabilities.csv
+     ```
 
-      - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
-      - `--data-source both`: Usa NVD e Vulners.
-      - `--search-file search_params_dds.txt`: Usa o arquivo com os termos de busca.
-      - `--output-file dds_vulnerabilities.csv`: Salva os resultados em `dds_vulnerabilities.csv`.
+     - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
+     - `--data-source both`: Usa NVD e Vulners.
+     - `--search-file search_params_dds.txt`: Usa o arquivo com os termos de busca.
+     - `--output-file dds_vulnerabilities.csv`: Salva os resultados em `dds_vulnerabilities.csv`.
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/dds_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/dds_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Reivindicação #2 (Exemplo: Análise de Protocolos de Roteamento em UAVs)**
 
@@ -259,30 +259,30 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Crie um arquivo (ex: `search_params_UAV.txt`) contendo os termos de busca relacionados a protocolos de roteamento de UAVs (ou utilize o arquivo que está no diretório search_params/search_params_UAV.txt):
+     - Crie um arquivo (ex: `search_params_UAV.txt`) contendo os termos de busca relacionados a protocolos de roteamento de UAVs (ou utilize o arquivo que está no diretório search_params/search_params_UAV.txt):
 
-      ```
-      AODV
-      DSR
-      OLSR
-      GRP
-      ```
+     ```
+     AODV
+     DSR
+     OLSR
+     GRP
+     ```
 
-  2.  **Execução:**
+  2. **Execução:**
 
-      ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_UAV.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/uav_vulnerabilities.csv
+     ```bash
+     python src/main.py --source combined --data-source both --search-file search_params/search_params_UAV.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/uav_vulnerabilities.csv
 
-      ```
+     ```
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/uav_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/uav_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Reivindicação #3 (Estudo de Caso MQTT):**
 
@@ -290,36 +290,36 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
-      - Crie um arquivo (ex: `search_params_MQTT.txt`) contendo os termos de busca relacionados a MQTT:
+     - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
+     - Crie um arquivo (ex: `search_params_MQTT.txt`) contendo os termos de busca relacionados a MQTT:
 
-        ```
-        Eclipse Mosquitto
-        EMQX
-        VerneMQ
-        RabbitMQ
-        HiveMQ
-        ```
+       ```
+       Eclipse Mosquitto
+       EMQX
+       VerneMQ
+       RabbitMQ
+       HiveMQ
+       ```
 
-  2.  **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
+  2. **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
 
-      ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_MQTT.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/mqtt_vulnerabilities.csv
-      ```
+     ```bash
+     python src/main.py --source combined --data-source both --search-file search_params/search_params_MQTT.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/mqtt_vulnerabilities.csv
+     ```
 
-      - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
-      - `--data-source both`: Usa NVD e Vulners.
-      - `--search-file search_params_MQTT.txt`: Usa o arquivo com os termos de busca.
-      - `--output-file mqtt_vulnerabilities.csv`: Salva os resultados em `mqtt_vulnerabilities.csv`.
+     - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
+     - `--data-source both`: Usa NVD e Vulners.
+     - `--search-file search_params_MQTT.txt`: Usa o arquivo com os termos de busca.
+     - `--output-file mqtt_vulnerabilities.csv`: Salva os resultados em `mqtt_vulnerabilities.csv`.
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/mqtt_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/mqtt_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Reivindicação #4 (Estudo de Caso Navegadores Web):**
 
@@ -327,36 +327,36 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente.
-      - Crie um arquivo (ex: `search_params_BROWSERS.txt`) contendo os termos de busca relacionados a navegadores:
+     - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente.
+     - Crie um arquivo (ex: `search_params_BROWSERS.txt`) contendo os termos de busca relacionados a navegadores:
 
-        ```
-        Google Chrome Browser
-        Microsoft Edge Browser
-        Mozilla Firefox Browser
-        Apple Safari Browser
-        Opera Browser
-        ```
+       ```
+       Google Chrome Browser
+       Microsoft Edge Browser
+       Mozilla Firefox Browser
+       Apple Safari Browser
+       Opera Browser
+       ```
 
-  2.  **Execução:**
+  2. **Execução:**
 
-      ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_BROWSERS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/browsers_vulnerabilities.csv
-      ```
+     ```bash
+     python src/main.py --source combined --data-source both --search-file search_params/search_params_BROWSERS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/browsers_vulnerabilities.csv
+     ```
 
-      - `--source combined`: Usa todos os LLMs.
-      - `--data-source both`: Usa NVD e Vulners.
-      - `--search-file search_params_browsers.txt`: Usa o arquivo com os termos de busca.
-      - `--output-file browsers_vulnerabilities.csv`: Salva os resultados em `browsers_vulnerabilities.csv`.
+     - `--source combined`: Usa todos os LLMs.
+     - `--data-source both`: Usa NVD e Vulners.
+     - `--search-file search_params_browsers.txt`: Usa o arquivo com os termos de busca.
+     - `--output-file browsers_vulnerabilities.csv`: Salva os resultados em `browsers_vulnerabilities.csv`.
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/browsers_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/browsers_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Observações Gerais (para todos os estudos de caso):**
 
