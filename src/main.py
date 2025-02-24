@@ -170,11 +170,11 @@ async def main():
 
     if args.source in ['provider']:
         categorized_data = []
-        print("Vulnerability categorizing...")
         categorizer_obj = Categorizer()
         
         for provider in args.provider:
             provider_type = get_provider(provider)
+            print("Vulnerability categorizing...")
             if provider_type:
                 if provider_type["api_key"]:
                     os.environ["PROVIDER_API_KEY"] = provider_type["api_key"]
@@ -209,28 +209,29 @@ async def main():
                     
                 categorized_data.append(vuln)
         
-        print(f"Total categorized vulnerabilities: {len(categorized_data)}")
+            print(f"Total categorized vulnerabilities: {len(categorized_data)}")
         # Load exporters
-        if provider:
-            args.output_file = provider + '_' + args.output_file
-        exporters = load_exporters(config, args.output_file)
-        if args.export_format not in exporters:
-            print(f"Unsupported export format: {args.export_format}")
-            return
+            output = ''
+            if provider:
+                output = provider + '_' + args.output_file
+            exporters = load_exporters(config, output)
+            if args.export_format not in exporters:
+                print(f"Unsupported export format: {args.export_format}")
+                return
 
-        print("Exporting data to", args.output_file)
-        exporter = exporters[args.export_format]
-        exporter.export(categorized_data)
+            print("Exporting data to", args.output_file)
+            exporter = exporters[args.export_format]
+            exporter.export(categorized_data)
 
-        # End measuring time and resources
-        end_time = time.time()
-        end_datetime = datetime.now()
-        print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
-        end_memory = process.memory_info().rss
+            # End measuring time and resources
+            end_time = time.time()
+            end_datetime = datetime.now()
+            print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+            end_memory = process.memory_info().rss
 
-        print("Process completed.")
-        print(f"Total execution time: {end_time - start_time:.2f} seconds")
-        print(f"Memory used: {(end_memory - start_memory) / (1024 * 1024):.2f} MB")
+            print("Process completed.")
+            print(f"Total execution time: {end_time - start_time:.2f} seconds")
+            print(f"Memory used: {(end_memory - start_memory) / (1024 * 1024):.2f} MB")
   
     if(args.source == 'provider'):
         return
