@@ -211,7 +211,7 @@ async def main():
         
             print(f"Total categorized vulnerabilities: {len(categorized_data)}")
         # Load exporters
-            output = 'src/dataset/'
+        
             if provider:
                 output = provider + '_' + args.output_file
             exporters = load_exporters(config, output)
@@ -219,7 +219,7 @@ async def main():
                 print(f"Unsupported export format: {args.export_format}")
                 return
 
-            print("Exporting data to", args.output_file)
+            print("Exporting data to", output)
             exporter = exporters[args.export_format]
             exporter.export(categorized_data)
 

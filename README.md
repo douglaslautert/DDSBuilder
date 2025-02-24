@@ -310,6 +310,8 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
      ```
 
      - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
+     - `--source provider`: Define o uso da lista de modelos de LLMs que está definida na configuração.
+     - `--provider [providers]`: Lista os modelos de LLMs que usará e está definida na configuração.
      - `--data-source both`: Usa NVD e Vulners.
      - `--search-file search_params_MQTT.txt`: Usa o arquivo com os termos de busca.
      - `--output-file mqtt_vulnerabilities.csv`: Salva os resultados em `mqtt_vulnerabilities.csv`.
@@ -350,6 +352,15 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
      - `--data-source both`: Usa NVD e Vulners.
      - `--search-file search_params_browsers.txt`: Usa o arquivo com os termos de busca.
      - `--output-file browsers_vulnerabilities.csv`: Salva os resultados em `browsers_vulnerabilities.csv`.
+
+     ```bash
+     python .\src\main.py --source provider --provider "meta" "google" "deepseek"  --data-source 'nvd' --search-params 'opendds' --export-format csv --output-file vulnerabilities.csv 
+     ```
+
+     - `--source provider`: Usa as LLMs definidas no `--provider`  os LLMs.
+     - `--data-source 'nvd'`: Usa NVD or Vulners.
+     - `--search-file search_params_browsers.txt`: Usa o arquivo com os termos de busca.
+     - `--output-file vulnerabilities.csv`: Salva os resultados em `deepseek_vulnerabilities.csv google_vulnerabilities.csv e meta_vulnerabilities.csv`.
 
   3. **Verificação:**
      - Verifique se o arquivo `dataset/browsers_vulnerabilities.csv` foi criado.
