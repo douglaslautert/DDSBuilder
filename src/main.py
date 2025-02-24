@@ -174,7 +174,7 @@ async def main():
         
         for provider in args.provider:
             provider_type = get_provider(provider)
-            print("Vulnerability categorizing...")
+            print(f"Vulnerability categorizing {provider}...")
             if provider_type:
                 if provider_type["api_key"]:
                     os.environ["PROVIDER_API_KEY"] = provider_type["api_key"]
