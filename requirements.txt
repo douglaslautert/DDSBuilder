@@ -1,7 +1,5 @@
 requests
-csv
-json
-re
-os
 google-generativeai
-time
+openai
+transformers
+psutil
