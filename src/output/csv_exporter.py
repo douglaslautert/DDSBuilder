@@ -13,10 +13,9 @@ class BasicCsvExporter(DataExporterBase):
                 writer.writeheader()
 
     fieldnames = [
-        "id", "title", "description", "vendor",
-        "cwe_category", "cwe_explanation", "cause", "impact",
-        "published", "cvss_score", "severity", "source",
-        "description_without_punct"  # Add this field to the fieldnames
+        'id', 'title', 'description', 'vendor', 'cwe_category', 'cwe_explanation', 
+            'cause', 'impact', 'published', 'cvss_score', 'severity', 'source', 
+            'description_without_punct', 'description_normalized', 'explanation'
     ]
 
     def write_row(self, row):
