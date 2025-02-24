@@ -21,21 +21,8 @@ Este README.md está organizado nas seguintes seções:
 7.  **Experimentos:** Explicação dos argumentos de linha de comando e exemplos de uso.
 8.  **Docker (Opcional):** Instruções para construir e executar a ferramenta usando Docker.
 9.  **Estrutura do Código:** Breve visão geral da organização do código-fonte.
-10. **Licença:** Informações sobre a licença do projeto.
-11. **Contribuindo:** (Opcional) Instruções para quem quiser contribuir.
-12. **Contato:** (Opcional) Informações de contato dos autores.
-13. **Selos Considerados** (Adicionado,conforme as instruções).
-
----
-
-## Selos Considerados
-
-Este artefato está submetido para avaliação dos seguintes selos:
-
-- Disponíveis
-- Funcionais
-- Sustentáveis
-- Experimentos Reprodutíveis
+10. **Extensibilidade**: Como adicionar novas fontes e novos exportadores.
+11. **Licença:** Informações sobre a licença do projeto.
 
 ---
 
@@ -230,41 +217,41 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
-      - Crie um arquivo (ex: `search_params_DDS.txt`) contendo os termos de busca relacionados a DDS (ou utilize o arquivo que está no diretório search_params/search_params_DDS.txt):
+     - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
+     - Crie um arquivo (ex: `search_params_DDS.txt`) contendo os termos de busca relacionados a DDS (ou utilize o arquivo que está no diretório search_params/search_params_DDS.txt):
 
-        ```
-        Data Distribution Service (DDS)
-        FastDDS
-        RTI Connext DDS
-        Open DDS
-        Cyclone DDS
-        IntercomDDS
-        Coredx DDS
-        Gurum DDS
-        OpenSplice DDS
-        MilDDS
-        ```
+       ```
+       Data Distribution Service (DDS)
+       FastDDS
+       RTI Connext DDS
+       Open DDS
+       Cyclone DDS
+       IntercomDDS
+       Coredx DDS
+       Gurum DDS
+       OpenSplice DDS
+       MilDDS
+       ```
 
-  2.  **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
+  2. **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
 
-      ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_DDS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/dds_vulnerabilities.csv
-      ```
+     ```bash
+       python src/main.py --source combined --data-source both --search-file search_params/search_params_DDS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/dds_vulnerabilities.csv
+     ```
 
-      - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
-      - `--data-source both`: Usa NVD e Vulners.
-      - `--search-file search_params_dds.txt`: Usa o arquivo com os termos de busca.
-      - `--output-file dds_vulnerabilities.csv`: Salva os resultados em `dds_vulnerabilities.csv`.
+     - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
+     - `--data-source both`: Usa NVD e Vulners.
+     - `--search-file search_params_dds.txt`: Usa o arquivo com os termos de busca.
+     - `--output-file dds_vulnerabilities.csv`: Salva os resultados em `dds_vulnerabilities.csv`.
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/dds_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/dds_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Reivindicação #2 (Exemplo: Análise de Protocolos de Roteamento em UAVs)**
 
@@ -272,30 +259,30 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Crie um arquivo (ex: `search_params_UAV.txt`) contendo os termos de busca relacionados a protocolos de roteamento de UAVs (ou utilize o arquivo que está no diretório search_params/search_params_UAV.txt):
+     - Crie um arquivo (ex: `search_params_UAV.txt`) contendo os termos de busca relacionados a protocolos de roteamento de UAVs (ou utilize o arquivo que está no diretório search_params/search_params_UAV.txt):
 
-      ```
-      AODV
-      DSR
-      OLSR
-      GRP
-      ```
+     ```
+     AODV
+     DSR
+     OLSR
+     GRP
+     ```
 
-  2.  **Execução:**
+  2. **Execução:**
 
-      ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_UAV.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/uav_vulnerabilities.csv
+     ```bash
+     python src/main.py --source combined --data-source both --search-file search_params/search_params_UAV.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/uav_vulnerabilities.csv
 
-      ```
+     ```
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/uav_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/uav_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Reivindicação #3 (Estudo de Caso MQTT):**
 
@@ -303,36 +290,36 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
-      - Crie um arquivo (ex: `search_params_MQTT.txt`) contendo os termos de busca relacionados a MQTT:
+     - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente (variáveis de ambiente ou argumentos de linha de comando).
+     - Crie um arquivo (ex: `search_params_MQTT.txt`) contendo os termos de busca relacionados a MQTT:
 
-        ```
-        Eclipse Mosquitto
-        EMQX
-        VerneMQ
-        RabbitMQ
-        HiveMQ
-        ```
+       ```
+       Eclipse Mosquitto
+       EMQX
+       VerneMQ
+       RabbitMQ
+       HiveMQ
+       ```
 
-  2.  **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
+  2. **Execução:** Execute o seguinte comando (adaptando os nomes dos arquivos e as chaves de API, se necessário):
 
-      ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_MQTT.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/mqtt_vulnerabilities.csv
-      ```
+     ```bash
+     python src/main.py --source combined --data-source both --search-file search_params/search_params_MQTT.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT>  --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/mqtt_vulnerabilities.csv
+     ```
 
-      - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
-      - `--data-source both`: Usa NVD e Vulners.
-      - `--search-file search_params_MQTT.txt`: Usa o arquivo com os termos de busca.
-      - `--output-file mqtt_vulnerabilities.csv`: Salva os resultados em `mqtt_vulnerabilities.csv`.
+     - `--source combined`: Usa todos os LLMs (Gemini, ChatGPT, Llama) com votação ponderada.
+     - `--data-source both`: Usa NVD e Vulners.
+     - `--search-file search_params_MQTT.txt`: Usa o arquivo com os termos de busca.
+     - `--output-file mqtt_vulnerabilities.csv`: Salva os resultados em `mqtt_vulnerabilities.csv`.
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/mqtt_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/mqtt_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Reivindicação #4 (Estudo de Caso Navegadores Web):**
 
@@ -340,36 +327,36 @@ Esta seção descreve como reproduzir os experimentos apresentados no artigo.
 
 - **Passos:**
 
-  1.  **Configuração:**
+  1. **Configuração:**
 
-      - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente.
-      - Crie um arquivo (ex: `search_params_BROWSERS.txt`) contendo os termos de busca relacionados a navegadores:
+     - Certifique-se de que as chaves de API (Vulners, Gemini, ChatGPT, Llama) estão configuradas corretamente.
+     - Crie um arquivo (ex: `search_params_BROWSERS.txt`) contendo os termos de busca relacionados a navegadores:
 
-        ```
-        Google Chrome Browser
-        Microsoft Edge Browser
-        Mozilla Firefox Browser
-        Apple Safari Browser
-        Opera Browser
-        ```
+       ```
+       Google Chrome Browser
+       Microsoft Edge Browser
+       Mozilla Firefox Browser
+       Apple Safari Browser
+       Opera Browser
+       ```
 
-  2.  **Execução:**
+  2. **Execução:**
 
-      ```bash
-      python src/main.py --source combined --data-source both --search-file search_params/search_params_BROWSERS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/browsers_vulnerabilities.csv
-      ```
+     ```bash
+     python src/main.py --source combined --data-source both --search-file search_params/search_params_BROWSERS.txt --vulners-key <SUA_CHAVE_VULNERS> --gemini-key <SUA_CHAVE_GEMINI> --chatgpt-key <SUA_CHAVE_CHATGPT> --llama-key <SUA_CHAVE_LLAMA> --export-format csv --output-file dataset/browsers_vulnerabilities.csv
+     ```
 
-      - `--source combined`: Usa todos os LLMs.
-      - `--data-source both`: Usa NVD e Vulners.
-      - `--search-file search_params_browsers.txt`: Usa o arquivo com os termos de busca.
-      - `--output-file browsers_vulnerabilities.csv`: Salva os resultados em `browsers_vulnerabilities.csv`.
+     - `--source combined`: Usa todos os LLMs.
+     - `--data-source both`: Usa NVD e Vulners.
+     - `--search-file search_params_browsers.txt`: Usa o arquivo com os termos de busca.
+     - `--output-file browsers_vulnerabilities.csv`: Salva os resultados em `browsers_vulnerabilities.csv`.
 
-  3.  **Verificação:**
-      - Verifique se o arquivo `dataset/browsers_vulnerabilities.csv` foi criado.
-      - Abra o arquivo e verifique se ele contém os dados esperados:
-        - Colunas com os campos básicos (ID, título, descrição, etc.).
-        - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
-        - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
+  3. **Verificação:**
+     - Verifique se o arquivo `dataset/browsers_vulnerabilities.csv` foi criado.
+     - Abra o arquivo e verifique se ele contém os dados esperados:
+       - Colunas com os campos básicos (ID, título, descrição, etc.).
+       - Colunas adicionais com as categorias extraídas pelos LLMs (CWE, explicação, fornecedor, causa, impacto).
+       - Os valores devem corresponder, aproximadamente, aos resultados apresentados nas tabelas e gráficos do artigo (pequenas variações são esperadas devido à natureza estocástica dos LLMs).
 
 **Observações Gerais (para todos os estudos de caso):**
 
@@ -444,6 +431,7 @@ O código-fonte está organizado da seguinte forma:
 - `data_sources/`: Contém os módulos para extrair dados de diferentes fontes.
   - `nvd_extractor.py`: Funções para acessar a API do NVD.
   - `vulners_extractor.py`: Funções para acessar a API do Vulners.
+  - `github_extractor.py`: (Atualmente não utilizado)
   - `__init__.py`
 - `output/`: Contém os módulos para exportar os dados processados.
   - `csv_exporter.py`: Funções para exportar dados para CSV.
@@ -452,12 +440,135 @@ O código-fonte está organizado da seguinte forma:
 - `processing/`: Contém módulos para processamento e normalização dos dados.
   - `filter.py`: Funções para filtrar as vulnerabilidades.
   - `normalizer.py`: Funções para normalizar os dados de diferentes fontes.
-  - `__init__.py`
+  - `load_data_source.py`:Carrega as fontes de dados.
+  - `data_preprocessor.py`: Orquestra o pré-processamento dos dados. -`__init__.py`
 - `src/`: Contém o script principal.
   - `main.py`: Ponto de entrada principal do programa.
 - `requirements.txt`: Lista as dependências do projeto.
 - `README.md`: Este arquivo.
 - search-params-\*.txt: Arquivos contendo termos para pesquisa.
+- config.yaml: Arquivo de configuração.
+
+## Extensibilidade
+
+O VulnBuilderAI foi projetado para ser extensível, permitindo a adição de novas fontes de dados, normalizadores e formatos de saída de forma simples e organizada. A arquitetura modular da ferramenta facilita a integração de novos componentes sem a necessidade de modificar o código principal. A seguir, descrevemos como adicionar novas fontes de dados e novos formatos de saída.
+
+### Adicionando Novas Fontes de Dados
+
+Para adicionar uma nova fonte de dados, siga os seguintes passos:
+
+1.  **Crie um Novo Módulo Extractor:**
+
+    - Dentro do diretório `data_sources/`, crie um novo arquivo Python com um nome descritivo para a nova fonte de dados, seguindo o padrão `nova_fonte_extractor.py`. Por exemplo, se você deseja adicionar uma fonte chamada "MySource", crie o arquivo `data_sources/mysource_extractor.py`.
+
+2.  **Implemente a Classe Extractor:**
+
+    - Dentro do novo arquivo (e.g., `mysource_extractor.py`), crie uma classe que herde da classe base `DataSourceBase` (definida em `data_sources/data_source.py`). Isso garante que a nova fonte de dados siga a interface esperada pela ferramenta.
+    - Implemente o método `collect_data(self, search_params)`:
+
+      - Este método é responsável por _coletar_ os dados da nova fonte.
+      - Ele recebe uma lista de `search_params` (termos de busca).
+      - Ele deve _retornar_ uma lista de _dicionários_, onde cada dicionário representa uma vulnerabilidade (ainda em um formato _bruto_, sem normalização). _Não se preocupe com o formato dos dados neste ponto; a normalização será feita posteriormente._
+      - Use a biblioteca `requests` para fazer as requisições HTTP, se necessário. _Lembre-se de tratar erros e exceções (conexão, rate limits, etc.) de forma adequada._
+      - Se a nova fonte de dados tiver sua própria API, use essa API. Se for uma página web, você pode usar bibliotecas como `BeautifulSoup` para fazer o parsing do HTML.
+      - Exemplo:
+
+        ```python
+        # data_sources/mysource_extractor.py
+        import requests
+        from .data_source import DataSourceBase
+
+        class MySourceExtractor(DataSourceBase):
+            async def collect_data(self, search_params):
+                vulnerabilities = []
+                for param in search_params:
+                    try:
+                        # Exemplo de chamada de API (substitua pela lógica real)
+                        response = requests.get(f"https://api.mysource.com/vulnerabilities?q={param}")
+                        response.raise_for_status()  # Lança exceção se erro HTTP
+                        data = response.json()
+                        # Adapte a lógica de extração para o formato da sua fonte
+                        vulnerabilities.extend(data.get('vulnerabilities', [])) #Adiciona no fim
+                    except requests.exceptions.RequestException as e:
+                        print(f"Erro ao coletar dados da MySource para '{param}': {e}")
+                return vulnerabilities
+
+            def normalize_data(self, vulnerability):
+              #Esta função é criada na etapa 5.
+        ```
+
+3.  **Atualize o Arquivo de Configuração:**
+
+    - Adicione a nova fonte de dados ao arquivo `config.yaml`:
+
+    ```yaml
+    data_sources:
+      - nvd
+      - vulners
+      - mysource
+
+      normalizers:
+      - basic
+
+      exporters:
+      - csv
+      - json
+    ```
+
+### Adicionando Novos Formatos de Saída
+
+Para adicionar um novo formato de saída, siga os seguintes passos:
+
+1.  **Crie um Novo Módulo Exporter:**
+
+    - Dentro do diretório output/, crie um novo arquivo Python com um nome descritivo para o novo formato de saída, seguindo o padrão novo_formato_exporter.py. Por exemplo, se você deseja adicionar um formato chamado "XML", crie o arquivo `output/xml_exporter.py`. Por exemplo, se você deseja adicionar um formato chamado "XML", crie o arquivo `output/xml_exporter.py`.
+
+2.  **Implemente a Classe Exporter:**
+
+    - Dentro do novo arquivo `(e.g., xml_exporter.py)`, crie uma classe que herde da classe base `DataExporterBase` (definida em `output/data_exporter.py`). Isso garante que o novo formato de saída siga a interface esperada pela ferramenta.
+    - Implemente o método `export(self, data, filename)`:
+
+      - Este método é responsável por exportar os dados no novo formato.
+      - Ele recebe os dados a serem exportados e o nome do arquivo de saída.
+      - Exemplo:
+
+        ```python
+
+        # output/xml_exporter.py
+
+        import xml.etree.ElementTree as ET
+        from .data_exporter import DataExporterBase
+
+        class XmlExporter(DataExporterBase):
+          def export(self, data, filename):
+             root = ET.Element("Vulnerabilities")
+            for item in data:
+              vuln_elem = ET.SubElement(root, "Vulnerability")
+               for key, value in item.items():
+                child = ET.SubElement(vuln_elem, key)
+                child.text = str(value)
+            tree = ET.ElementTree(root)
+          tree.write(filename, encoding='utf-8', xml_declaration=True
+        ```
+
+3.  **Atualize o Arquivo de Configuração:**
+
+    - Adicione o novo formato de saída ao arquivo `config.yaml`:
+
+    ```yaml
+    data_sources:
+      - nvd
+      - vulners
+      - mysource
+
+      normalizers:
+      - basic
+
+      exporters:
+      - csv
+      - json
+      - xml
+    ```
 
 ## Licença
 

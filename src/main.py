@@ -1,93 +1,51 @@
 import os
 import argparse
-import re
-import time
+import yaml
+import psutil
 import asyncio
-from processing import normalizer
-import data_sources.nvd_extractor as nvd_extractor
-import data_sources.vulners_extractor as vulners_extractor
+import time
+from datetime import datetime
+from processing.data_preprocessor import DataPreprocessor
+from data_sources.load_data_source import load_data_sources
+from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
-from output import json_exporter, csv_exporter
+from output.load_exporter import load_exporters
 
+# Load configuration
+def load_config():
+    with open('src/config.yaml', 'r') as file:
+        return yaml.safe_load(file)
 
-def collect_data(search_params, source):
+async def collect_data(search_params, sources, config):
     """
     Collect vulnerability data from specified sources.
     """
+    data_sources = load_data_sources(config)
+    print(f"Loaded data sources: {list(data_sources.keys())}")
     vulnerabilities = []
-    
-    if source in ['nvd', 'both']:
-        vulnerabilities.extend(nvd_extractor.collect_data(search_params))
 
-    if source in ['vulners', 'both']:
-        vulnerabilities.extend(vulners_extractor.get_data(search_params))
-    
+    if 'both' in sources:
+        print("Collecting data from both sources")
+        tasks = [data_sources[ds_name].collect_data(search_params) for ds_name in data_sources]
+        results = await asyncio.gather(*tasks)
+        for result in results:
+            vulnerabilities.extend(result)
+    else:
+        for source in sources:
+            if source in data_sources:
+                print(f"Collecting data from source: {source}")
+                vulnerabilities.extend(await data_sources[source].collect_data(search_params))
+            else:
+                print(f"Unsupported data source: {source}")
+
     # Debug output
     print(f"Total vulnerabilities collected: {len(vulnerabilities)}")
     print("Sources breakdown:")
-    nvd_count = sum(1 for v in vulnerabilities if 'cve' in v)
-    vulners_count = sum(1 for v in vulnerabilities if '_source' in v)
-    print(f"- NVD: {nvd_count}")
-    print(f"- Vulners: {vulners_count}")
-    
+    for ds_name in data_sources:
+        count = sum(1 for v in vulnerabilities if v.get('source') == ds_name)
+        print(f"- {ds_name.capitalize()}: {count}")
+
     return vulnerabilities
-
-def preprocess_data(vulnerabilities, search_params):
-    """Normalize vulnerability data and handle duplicates with improved tracking."""
-    normalized = []
-    seen_ids = {}  # Change to dict to track sources
-    duplicates = []
-    
-    for vuln in vulnerabilities:
-
-        description_full, normalized_id, source = normalizer.normalize_vulnerability_info(vuln)        
-        
-        if not normalized_id:
-            print(f"Warning: Empty ID found for vulnerability with description: {description_full[:100]}...")
-            continue
-            
-        # Check for duplicates with source awareness
-        if normalized_id in seen_ids:
-            # If same source, it's a true duplicate
-            if source == seen_ids[normalized_id]['source']:
-                duplicates.append({
-                    'id': normalized_id,
-                    'source': source,
-                    'reason': 'Same source duplicate'
-                })
-                continue
-                
-            # If different sources, keep both but log
-            print(f"Note: ID {normalized_id} found in both {source} and {seen_ids[normalized_id]['source']}")
-        
-        # Process description
-        truncated_description = description_full[:300] if description_full else ""
-        description_without_punct = re.sub(r'[^\w\s]', '', truncated_description).lower() if truncated_description else ""
-
-        # Normalize data
-        norm = normalizer.normalize_data(vuln, description_without_punct, truncated_description)
-        
-        if norm:
-            # Assign vendor based on search parameters
-            norm['vendor'] = next((param for param in search_params if param.lower() in description_without_punct), "Unknown")
-            normalized.append(norm)
-            seen_ids[normalized_id] = {
-                'source': source,
-                'index': len(normalized) - 1
-            }
-    
-    # Print detailed statistics
-    print("\nDuplication Statistics:")
-    print(f"Total vulnerabilities found: {len(vulnerabilities)}")
-    print(f"Unique vulnerabilities after normalization: {len(normalized)}")
-    print(f"Duplicates removed: {len(duplicates)}")
-    
-    if duplicates:
-        print("\nDuplicate Details:")
-        for dup in duplicates:
-            print(f"- {dup['id']} from {dup['source']}: {dup['reason']}")
-            
-    return normalized
 
 def read_search_params_from_file(file_path):
     with open(file_path, 'r') as file:
@@ -98,10 +56,17 @@ async def main():
         description="DDS Builder: Build a vulnerability dataset for DDS systems using an AI provider for categorization",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
+
+    # Load configuration to dynamically add data source choices
+    config = load_config()
+
+    data_source_choices = config['data_sources'] + ['both']
+    export_format_choices = config['exporters']
+
     parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'default', 'none'], required=True,
                         help="Select the AI provider for categorization")
-    parser.add_argument('--data-source', choices=['nvd', 'vulners', 'both'], required=True,
-                        help="Select the data source for vulnerabilities")  
+    parser.add_argument('--data-source', choices=data_source_choices, nargs='+', required=True,
+                        help="Select the data source(s) for vulnerabilities")  
     parser.add_argument('--gemini-key', help="API key for Gemini")
     parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
     parser.add_argument('--llama-key', help="API key for Llama")
@@ -109,7 +74,8 @@ async def main():
     parser.add_argument('--default-url', help="Base URL for Default LLM")
     parser.add_argument('--default-model', help="Model for Default LLM")
     parser.add_argument('--vulners-key', help="API key for Vulners")
-    parser.add_argument('--export-format', choices=['csv', 'json'], default='csv', help="Export format")
+    parser.add_argument('--new-source-key', help="API key for New Source")  # Add new source key argument
+    parser.add_argument('--export-format', choices=export_format_choices, required=True, help="Export format")
     parser.add_argument('--output-file', default="dataset/dds_vulnerabilities_AI.csv", help="Output file name")
     parser.add_argument('--search-params', nargs='*', help="Search parameters for vulnerabilities")
     parser.add_argument('--search-file', help="Path to a file containing search parameters")
@@ -118,6 +84,8 @@ async def main():
     # Prioritize command-line arguments over environment variables
     if args.vulners_key:
         os.environ["VULNERS_API_KEY"] = args.vulners_key
+    if args.new_source_key:
+        os.environ["NEW_SOURCE_API_KEY"] = args.new_source_key  # Set new source key in environment
     os.environ["CSV_OUTPUT_FILE"] = args.output_file
 
     if args.source in ['gemini', 'combined']:
@@ -147,7 +115,7 @@ async def main():
             os.environ["DEFAULT_API_MODEL"] = args.default_model
             os.environ["DEFAULT_API_KEY"] = args.default_key
         elif not os.getenv("DEFAULT_API_KEY") or not os.getenv("DEFAULT_API_URL") or not os.getenv("DEFAULT_API_MODEL"):
-            print("Default API key, URL, or Model not found in environment.")
+            print("Default API key, URL, ou Model não encontrado no ambiente.")
             return
         
     search_params = args.search_params or []
@@ -158,68 +126,99 @@ async def main():
         print("No search parameters provided.")
         return
 
+    # Start measuring time and resources
+    start_time = time.time()
+    start_datetime = datetime.now()
+    print(f"Program started at: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+    process = psutil.Process(os.getpid())
+    start_memory = process.memory_info().rss
+
+    # Load data sources
+    data_sources = load_data_sources(config)
+    selected_data_sources = {key: data_sources[key] for key in config['data_sources'] if key in data_sources}
+
     print("Collecting vulnerability data...")
-    vulnerabilities = collect_data(search_params, args.data_source)
+    vulnerabilities = await collect_data(search_params, args.data_source, config)
+    
     if not vulnerabilities:
         print("No vulnerability data collected.")
         return
+    
+    # Load normalizers
+    normalizers = load_normalizers(config)
 
     print("Preprocessing data...")
-    normalized_data = preprocess_data(vulnerabilities, search_params)
+    data_preprocessor = DataPreprocessor(normalizers)
+    normalized_data = []
+    for source_name in selected_data_sources:
+        source = selected_data_sources[source_name]
+        normalized_data.extend(data_preprocessor.preprocess_data(vulnerabilities, search_params, source))
+    
     if not normalized_data:
         print("No normalized vulnerabilities found.")
         return
 
-    print("Categorizing vulnerabilities...")
-    categorizer_obj = Categorizer()
     categorized_data = []
-    
-    for vuln in normalized_data:
-        description = vuln.get("description", "")
-        result = None
+    if args.source != 'none':
+        print("Vulnerability categorizing...")
+        categorizer_obj = Categorizer()
         
-        if args.source == 'gemini':
-            result = await categorizer_obj.categorize_vulnerability_gemini(description)
-        elif args.source == 'chatgpt':
-            result = await categorizer_obj.categorize_vulnerability_gpt(description)
-        elif args.source == 'llama':
-            result = await categorizer_obj.categorize_vulnerability_llama(description)
-        elif args.source == 'combined':
-            result = await categorizer_obj.categorize_vulnerability_combined(description)
-            await asyncio.sleep(1)  # Rate limit for combined API
-        elif args.source == 'default':
-            result = await categorizer_obj.categorize_vulnerability_default(description)
-        elif args.source == 'none':
-            result = categorizer_obj.categorize_vulnerability_none(description)
+        for vuln in normalized_data:
+            description = vuln.get("description", "")
+            result = None
             
-        if result and len(result) > 0:
-            categorization = result[0]  # Get first result dictionary
-            vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
-            vuln["cwe_explanation"] = categorization.get("explanation", "")
-            vuln["cause"] = categorization.get("cause", "")
-            vuln["impact"] = categorization.get("impact", "")
-        else:
-            # Fallback values if categorization fails
-            vuln["cwe_category"] = "UNKNOWN"
-            vuln["cwe_explanation"] = ""
-            vuln["cause"] = ""
-            vuln["impact"] = ""
-            print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
-            
-        categorized_data.append(vuln)
+            if args.source == 'gemini':
+                result = await categorizer_obj.categorize_vulnerability_gemini(description)
+            elif args.source == 'chatgpt':
+                result = await categorizer_obj.categorize_vulnerability_gpt(description)
+            elif args.source == 'llama':
+                result = await categorizer_obj.categorize_vulnerability_llama(description)
+            elif args.source == 'combined':
+                result = await categorizer_obj.categorize_vulnerability_combined(description)
+                
+            if result and len(result) > 0:
+                categorization = result[0]  # Get first result dictionary
+                vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
+                vuln["cwe_explanation"] = categorization.get("explanation", "")
+                vuln["cause"] = categorization.get("cause", "")
+                vuln["impact"] = categorization.get("impact", "")
+                vuln["description_normalized"] = description
+                vuln["explanation"] = categorization.get("explanation", "")
+            else:
+                # Fallback values if categorization fails
+                vuln["cwe_category"] = "UNKNOWN"
+                vuln["cwe_explanation"] = ""
+                vuln["cause"] = ""
+                vuln["impact"] = ""
+                vuln["description_normalized"] = description
+                vuln["explanation"] = ""
+                print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
+                
+            categorized_data.append(vuln)
+    else:
+        categorized_data = normalized_data
 
     print(f"Total categorized vulnerabilities: {len(categorized_data)}")
 
-    print("Exporting data to", args.output_file)
-    if args.export_format == 'csv':
-        exporter = csv_exporter.BasicCsvExporter(args.output_file)
-        exporter.export(categorized_data)
-    elif args.export_format == 'json':
-        json_exporter.write_to_json(categorized_data, args.output_file)
-    else:
-        print("Unsupported export format.")
+    # Load exporters
+    exporters = load_exporters(config, args.output_file)
+    if args.export_format not in exporters:
+        print(f"Unsupported export format: {args.export_format}")
+        return
 
-    print("Process complete.")
+    print("Exporting data to", args.output_file)
+    exporter = exporters[args.export_format]
+    exporter.export(categorized_data)
+
+    # End measuring time and resources
+    end_time = time.time()
+    end_datetime = datetime.now()
+    print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+    end_memory = process.memory_info().rss
+
+    print("Process completed.")
+    print(f"Total execution time: {end_time - start_time:.2f} seconds")
+    print(f"Memory used: {(end_memory - start_memory) / (1024 * 1024):.2f} MB")
 
 if __name__ == "__main__":
     asyncio.run(main())

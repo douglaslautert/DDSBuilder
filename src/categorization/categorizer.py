@@ -1,6 +1,5 @@
 import json
 import re
-from datetime import datetime as dt
 import google.generativeai as genai
 import os
 import asyncio

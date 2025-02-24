@@ -1,29 +1,23 @@
 import csv
 import os
-import categorization.categorizer as cat
+from .data_exporter import DataExporterBase
 
-class BasicCsvExporter:
-    # Adjust fieldnames as needed by your vulnerability dictionary.
+class BasicCsvExporter(DataExporterBase):
+    def __init__(self, filename):
+        self.filename = filename
+        self.existing = set()
+        # Create file and write header if it doesn't exist
+        if not os.path.exists(self.filename):
+            with open(self.filename, mode='w', newline='', encoding='utf-8') as file:
+                writer = csv.DictWriter(file, fieldnames=self.fieldnames)
+                writer.writeheader()
+
     fieldnames = [
         "id", "title", "description", "vendor",
         "cwe_category", "cwe_explanation", "cause", "impact",
-        "published", "cvss_score", "severity", "source", "description_normalized", "explanation"
+        "published", "cvss_score", "severity", "source",
+        "description_without_punct"  # Add this field to the fieldnames
     ]
-    
-    def __init__(self, filename):
-        self.filename = filename
-        # Ensure the output directory exists.
-        directory = os.path.dirname(filename)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-        # Write header immediately to create/overwrite file.
-        self.write_header()
-        self.existing = set()
-
-    def write_header(self):
-        with open(self.filename, 'w', newline='', encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=self.fieldnames, delimiter=';')
-            writer.writeheader()
 
     def write_row(self, row):
         if 'id' not in row or not row['id']:
@@ -31,41 +25,10 @@ class BasicCsvExporter:
             return
         # Append row to file.
         with open(self.filename, 'a', newline='', encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=self.fieldnames, delimiter=';')
+            writer = csv.DictWriter(f, fieldnames=self.fieldnames)
             writer.writerow(row)
-            self.existing.add(row.get('id'))
 
     def export(self, data):
         for item in data:
             if item.get('id') not in self.existing:
                 self.write_row(item)
-
-class GptCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-class GeminiCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-class LlamaCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-class GithubCsvExporter(BasicCsvExporter):
-    def export(self, data):
-        for item in data:
-            if item.get('id') not in self.existing:
-                self.write_row(item)
-
-def write_rows(data, filename="output.csv"):
-    exporter = BasicCsvExporter(filename)
-    for item in data:
-        if item.get('id') not in exporter.existing:
-            exporter.write_row(item)

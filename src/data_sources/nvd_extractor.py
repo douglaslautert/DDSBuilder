@@ -1,77 +1,44 @@
 import requests
-import json
-import os
-import time
-# extractor para nvd from vulners.com
-def get_vulners_data(search_query, fields, skip):
-    # Implementação dummy para testes
-    if skip > 0:
-        return {'data': {'search': [], 'total': 1}}
-    return {
-        'data': {
-            'search': [{
-                '_source': {
-                    'id': 'V1',
-                    'title': 'Sample Vuln from Vulners',
-                    'description': 'Allows remote code execution',
-                    'published': '2021-01-01',
-                    'cvss': {'score': 8.5, 'severity': 'HIGH'}
-                }
-            }],
-            'total': 1
-        }
-    }
-def collect_data(search_params):
-    vulnerabilities = []
-    for param in search_params:
-            nvd_response = get_nvd_data(param)
+import asyncio
+from .data_source import DataSourceBase
+
+class NvdExtractor(DataSourceBase):
+    async def collect_data(self, search_params):
+        vulnerabilities = []
+        for param in search_params:
+            print(f"Collecting NVD data for search parameter: {param}")
+            nvd_response = await self.get_nvd_data(param)  # Adicione await aqui
             if nvd_response and 'vulnerabilities' in nvd_response:
-                vulnerabilities.extend(nvd_response['vulnerabilities'])
-                print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities")
-                time.sleep(1)
-    return vulnerabilities
+                for vuln in nvd_response['vulnerabilities']:
+                    vulnerabilities.append(vuln)
+                print(f"Found {len(nvd_response['vulnerabilities'])} NVD vulnerabilities for {param}")
+            else:
+                print(f"No vulnerabilities found for {param}")
+        return vulnerabilities
 
-def get_nvd_data(keyword):
-    """Fetches vulnerability data from the NVD API"""
-    base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
-    params = {
-        'keywordSearch': keyword,
-    
-    }
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
-    response = requests.get(base_url, params=params, headers=headers)
-    if response.status_code == 403:
-        print(f"Rate limit exceeded or access forbidden for keyword: {keyword}")
-        time.sleep(60)  # Wait for 1 minute before retrying
+    async def get_nvd_data(self, keyword):
+        base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
+        params = {'keywordSearch': keyword}
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        print(f"Sending request to NVD API with keyword: {keyword}")
         response = requests.get(base_url, params=params, headers=headers)
-    response.raise_for_status()
-    return response.json()
+        print(f"NVD API response status code: {response.status_code}")
+        if response.status_code == 403:
+            print(f"Rate limit exceeded or access forbidden for keyword: {keyword}")
+            await asyncio.sleep(5)
+            response = requests.get(base_url, params=params, headers=headers)
+            print(f"NVD API response status code after retry: {response.status_code}")
+        response.raise_for_status()
+        return response.json()
 
-
-def fetch_all_vulnerabilities(vendor):
-    # Implementação dummy: retorna uma vulnerabilidade para o vendor
-    return [{
-        'cve': {
-            'id': f'NVD_{vendor}_001',
-            'descriptions': [{'lang': 'en', 'value': f'{vendor} vulnerability description'}],
-            'published': '2021-06-01',
-            'sourceIdentifier': 'NVD',
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': 5.0,
-                        'baseSeverity': 'MEDIUM'
-                    }
-                }]
-            },
-            'configurations': [{
-                'nodes': [{
-                    'cpeMatch': [{
-                        'criteria': f"cpe:2.3:o:{vendor}:product:version"
-                    }]
-                }]
-            }]
+    def normalize_data(self, vulnerability):
+        cve = vulnerability.get('cve', {})
+        metrics = cve.get('metrics', {}).get('cvssMetricV31', [{}])[0].get('cvssData', {})
+        return {
+            'id': cve.get('id'),
+            'description': next((desc.get('value') for desc in cve.get('descriptions', []) if desc.get('lang') == 'en'), ''),
+            'published': cve.get('published'),
+            'cvss_score': metrics.get('baseScore'),
+            'severity': metrics.get('baseSeverity'),
+            'source': 'nvd'
         }
-    }]
