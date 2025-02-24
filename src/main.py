@@ -211,7 +211,7 @@ async def main():
         
             print(f"Total categorized vulnerabilities: {len(categorized_data)}")
         # Load exporters
-            output = ''
+            output = 'src/dataset/'
             if provider:
                 output = provider + '_' + args.output_file
             exporters = load_exporters(config, output)
