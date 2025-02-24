@@ -11,9 +11,40 @@ from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
 from output.load_exporter import load_exporters
 
+GEMINI_API_KEY = "GEMINI_API_KEY" # Replace with your Gemini API key
+CHAT_API_KEY = "CHAT_API_KEY" # Replace with your Chat-GPT API Key
+LLAMA_API_KEY = "LLAMA_API_KEY"
+
+# Define a chave de API do Gemini como uma variável de ambiente
+os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
+# Define a chave de API do Chat-GPT como uma variável de ambiente
+os.environ["CHAT_API_KEY"] = CHAT_API_KEY
+# Define a chave de API do Deep-Seek como uma variável de ambiente
+os.environ["LLAMA_API_KEY"] = LLAMA_API_KEY
+
+
+MODELS_TO_EVALUATE = [
+    {"model": "gpt-4o-mini", "provider": "openai", "api_key": os.environ["CHAT_API_KEY"], "site": "https://api.openai.com/v1"},
+    {"model": "llama3.1-70b", "type": "api", "provider": "meta", "site": "https://api.llama-api.com", "api_key": os.environ["LLAMA_API_KEY"]},
+    {"model": "deepseek-r1", "type": "api", "provider": "deepseek", "site": "https://api.llama-api.com", "api_key": os.environ["LLAMA_API_KEY"]},
+    {"model": "gemini-1.5-flash", "type": "api", "provider": "google", "site": "https://generativelanguage.googleapis.com/v1beta/openai/", "api_key": os.environ["GOOGLE_API_KEY"]},
+    {"model": "mistral-7b-instruct", "type": "api", "provider": "mytral", "site": "https://api.llama-api.com", "api_key": os.environ["LLAMA_API_KEY"]},
+]
+
+def get_provider(provider_name):
+    for model_info in MODELS_TO_EVALUATE:
+        if model_info.get("provider") == provider_name:
+            return {
+                "model": model_info.get("model"),
+                "api_key": model_info.get("api_key"),
+                "site": model_info.get("site")  # Default site if not provided
+            }
+    return None
+
 # Load configuration
 def load_config():
-    with open('src/config.yaml', 'r') as file:
+    config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+    with open(config_path, 'r') as file:
         return yaml.safe_load(file)
 
 async def collect_data(search_params, sources, config):
@@ -63,7 +94,7 @@ async def main():
     data_source_choices = config['data_sources'] + ['both']
     export_format_choices = config['exporters']
 
-    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'default', 'none'], required=True,
+    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'provider', 'none'], required=True,
                         help="Select the AI provider for categorization")
     parser.add_argument('--data-source', choices=data_source_choices, nargs='+', required=True,
                         help="Select the data source(s) for vulnerabilities")  
@@ -73,6 +104,7 @@ async def main():
     parser.add_argument('--default-key', help="API key for Default LLM")
     parser.add_argument('--default-url', help="Base URL for Default LLM")
     parser.add_argument('--default-model', help="Model for Default LLM")
+    parser.add_argument('--provider', help="Providers of LLM")  # Add new argument for Default LLM
     parser.add_argument('--vulners-key', help="API key for Vulners")
     parser.add_argument('--new-source-key', help="API key for New Source")  # Add new source key argument
     parser.add_argument('--export-format', choices=export_format_choices, required=True, help="Export format")
@@ -117,6 +149,19 @@ async def main():
         elif not os.getenv("DEFAULT_API_KEY") or not os.getenv("DEFAULT_API_URL") or not os.getenv("DEFAULT_API_MODEL"):
             print("Default API key, URL, ou Model não encontrado no ambiente.")
             return
+    if args.source in ['provider']:
+        if args.provider:
+            provider = get_provider(args.provider)
+            if provider:
+                if provider["api_key"]:
+                    os.environ["PROVIDER_API_KEY"] = provider["api_key"]
+                if provider["site"]:
+                    os.environ["PROVIDER_API_URL"] = provider["site"]
+                if provider["model"]:
+                    os.environ["PROVIDER_API_MODEL"] = provider["model"]
+            else:
+                print(f"Provider {args.provider} not found in the list of models.")
+                return
         
     search_params = args.search_params or []
     if args.search_file:
@@ -125,6 +170,11 @@ async def main():
     if not search_params:
         print("No search parameters provided.")
         return
+
+    # Create the output directory if it doesn't exist
+    output_dir = os.path.dirname(args.output_file)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # Start measuring time and resources
     start_time = time.time()
@@ -175,7 +225,9 @@ async def main():
                 result = await categorizer_obj.categorize_vulnerability_llama(description)
             elif args.source == 'combined':
                 result = await categorizer_obj.categorize_vulnerability_combined(description)
-                
+            elif args.source == 'provider':
+                result = await categorizer_obj.categorize_vulnerability_provider(description)    
+            
             if result and len(result) > 0:
                 categorization = result[0]  # Get first result dictionary
                 vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")

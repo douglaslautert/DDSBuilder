@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime as dt
 import google.generativeai as genai
 import os
 import asyncio
@@ -220,6 +221,46 @@ class Categorizer:
         except Exception as e:
             print(f"Error calling ChatGPT API: {e}")
             return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
+
+    async def categorize_vulnerability_provider(self, description):
+        api_key = os.getenv('PROVIDER_API_KEY')
+        base_url = os.getenv('PROVIDER_API_URL')
+        model = os.getenv('PROVIDER_API_MODEL')
+        
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        prompt = f"""
+        You are a security expert.
+        Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
+        Provide the CWE ID (only the CWE ID of the vulnerability), a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+
+        Description:
+        ```
+        {description}
+        ```
+        Rules for returning the vendor:
+        - Return only the official/primary vendor name
+        - For open source projects, return the organization maintaining it
+        - If multiple vendors are mentioned, return the one responsible for the vulnerable component
+        - Normalize variations of the same vendor name
+        - If no clear vendor is found, return "Unknown"
+        - Use official vendor names where possible and keep the same name for vulnerabilities of the same vendor
+
+        Output:
+        ```json
+        {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
+        ```
+        """
+        try:
+            completion = await client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            result = _extract_category(completion.choices[0].message.content)
+            return [result]
+        except Exception as e:
+            print(f"Error calling ChatGPT API: {e}")
+            return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
+
 
     def categorize_vulnerability_none(self, description):
         return [{"cwe_category": "UNKNOWN", "explanation": "No categorization available",
