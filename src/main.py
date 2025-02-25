@@ -22,6 +22,15 @@ def get_provider(provider_name):
             }
     return None
 
+def get_data_source(data_source_name):
+    for source_info in DATA_SOURCES:
+        if source_info.get("name") == data_source_name:
+            return {
+                "name": source_info.get("name"),
+                "api_key": source_info.get("api_key", None)
+            }
+    return None
+
 # Load configuration
 def load_config():
     config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
@@ -31,6 +40,7 @@ def load_config():
 config = load_config()
 
 MODELS_TO_EVALUATE = config['models_to_evaluate']
+DATA_SOURCES = config['data_sources']
 
 async def collect_data(search_params, sources, config):
     """
@@ -69,18 +79,18 @@ def read_search_params_from_file(file_path):
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="DDS Builder: Build a vulnerability dataset for DDS systems using an AI provider for categorization",
+        description="VulnBuilderAI: Build a vulnerability dataset for systems using an AI provider for categorization",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     # Load configuration to dynamically add data source choices
     config = load_config()
 
-    data_source_choices = config['data_sources'] + ['both']
+    data_source_choices = [source['name'] for source in config['data_sources']] + ['both']
     export_format_choices = config['exporters']
 
-    parser.add_argument('--source', choices=['gemini', 'chatgpt', 'llama', 'combined', 'provider', 'none'], required=True,
-                        help="Select the AI provider for categorization")
+    parser.add_argument('--source', default="provider", choices=['provider', 'none'],
+                        help="Select if you want to use a IA provider or not")
     parser.add_argument('--data-source', choices=data_source_choices, nargs='+', required=True,
                         help="Select the data source(s) for vulnerabilities")  
     parser.add_argument('--gemini-key', help="API key for Gemini")
@@ -90,7 +100,7 @@ async def main():
     parser.add_argument('--vulners-key', help="API key for Vulners")
     parser.add_argument('--new-source-key', help="API key for New Source")  # Add new source key argument
     parser.add_argument('--export-format', choices=export_format_choices, required=True, help="Export format")
-    parser.add_argument('--output-file', default="dataset/dds_vulnerabilities_AI.csv", help="Output file name")
+    parser.add_argument('--output-file', default="dataset/dataset_vulnerabilities_AI.csv", help="Output file name")
     parser.add_argument('--search-params', nargs='*', help="Search parameters for vulnerabilities")
     parser.add_argument('--search-file', help="Path to a file containing search parameters")
     args = parser.parse_args()
@@ -136,6 +146,11 @@ async def main():
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # Set API keys for data sources
+    for source in config['data_sources']:
+        if 'api_key' in source:
+            os.environ[f"{source['name'].upper()}_API_KEY"] = source['api_key']
+
     # Start measuring time and resources
     start_time = time.time()
     start_datetime = datetime.now()
@@ -145,7 +160,7 @@ async def main():
 
     # Load data sources
     data_sources = load_data_sources(config)
-    selected_data_sources = {key: data_sources[key] for key in config['data_sources'] if key in data_sources}
+    selected_data_sources = {source['name']: data_sources[source['name']] for source in config['data_sources'] if source['name'] in data_sources}
 
     print("Collecting vulnerability data...")
     vulnerabilities = await collect_data(search_params, args.data_source, config)
@@ -162,128 +177,73 @@ async def main():
     normalized_data = []
     for source_name in selected_data_sources:
         source = selected_data_sources[source_name]
-        normalized_data.extend(data_preprocessor.preprocess_data(vulnerabilities, search_params, source))
+        normalized_data.extend(data_preprocessor.preprocess_data(vulnerabilities, search_params, source, source_name))
     
     if not normalized_data:
         print("No normalized vulnerabilities found.")
         return
 
-    if args.source in ['provider']:
-        categorized_data = []
-        categorizer_obj = Categorizer()
-        
-        for provider in args.provider:
-            provider_type = get_provider(provider)
-            print(f"Vulnerability categorizing {provider}...")
-            if provider_type:
-                if provider_type["api_key"]:
-                    os.environ["PROVIDER_API_KEY"] = provider_type["api_key"]
-                if provider_type["site"]:
-                    os.environ["PROVIDER_API_URL"] = provider_type["site"]
-                if provider_type["model"]:
-                    os.environ["PROVIDER_API_MODEL"] = provider_type["model"]
-            
-            for vuln in normalized_data:
-                description = vuln.get("description", "")
-                result = None
-                
-                result = await categorizer_obj.categorize_vulnerability_provider(description)    
-                
-                if result and len(result) > 0:
-                    categorization = result[0]  # Get first result dictionary
-                    vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
-                    vuln["cwe_explanation"] = categorization.get("explanation", "")
-                    vuln["cause"] = categorization.get("cause", "")
-                    vuln["impact"] = categorization.get("impact", "")
-                    vuln["description_normalized"] = description
-                    vuln["explanation"] = categorization.get("explanation", "")
-                else:
-                    # Fallback values if categorization fails
-                    vuln["cwe_category"] = "UNKNOWN"
-                    vuln["cwe_explanation"] = ""
-                    vuln["cause"] = ""
-                    vuln["impact"] = ""
-                    vuln["description_normalized"] = description
-                    vuln["explanation"] = ""
-                    print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
-                    
-                categorized_data.append(vuln)
-        
-            print(f"Total categorized vulnerabilities: {len(categorized_data)}")
-        # Load exporters
-        
-            if provider:
-                output = provider + '_' + args.output_file
-            exporters = load_exporters(config, output)
-            if args.export_format not in exporters:
-                print(f"Unsupported export format: {args.export_format}")
-                return
+    categorized_data = {provider: [] for provider in args.provider}
+    categorizer_obj = Categorizer()
 
-            print("Exporting data to", output)
-            exporter = exporters[args.export_format]
-            exporter.export(categorized_data)
-
-            # End measuring time and resources
-            end_time = time.time()
-            end_datetime = datetime.now()
-            print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
-            end_memory = process.memory_info().rss
-
-            print("Process completed.")
-            print(f"Total execution time: {end_time - start_time:.2f} seconds")
-            print(f"Memory used: {(end_memory - start_memory) / (1024 * 1024):.2f} MB")
-  
-    if(args.source == 'provider'):
-        return
-  
-    if(args.source != 'none'):
+    for provider in args.provider:
+        provider_type = get_provider(provider)
+        print(f"Vulnerability categorizing {provider}...")
+        if provider_type:
+            if provider_type["api_key"]:
+                os.environ["PROVIDER_API_KEY"] = provider_type["api_key"]
+            if provider_type["site"]:
+                os.environ["PROVIDER_API_URL"] = provider_type["site"]
+            if provider_type["model"]:
+                os.environ["PROVIDER_API_MODEL"] = provider_type["model"]
+        
         for vuln in normalized_data:
-                description = vuln.get("description", "")
-                result = None
+            if not vuln.get("id"):
+                print(f"Warning: Skipping vulnerability without ID: {vuln}")
+                continue
+            description = vuln.get("description", "")
+            result = None
+            
+            try:
+                result = await categorizer_obj.categorize_vulnerability_provider(description)
+            except Exception as e:
+                print(f"Error categorizing vulnerability with {provider}: {e}")
+                result = [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
+            
+            if result and len(result) > 0:
+                categorization = result[0]  # Get first result dictionary
+                vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
+                vuln["cwe_explanation"] = categorization.get("explanation", "")
+                vuln["cause"] = categorization.get("cause", "")
+                vuln["impact"] = categorization.get("impact", "")
+                vuln["description_normalized"] = description
+                vuln["explanation"] = categorization.get("explanation", "")
+            else:
+                # Fallback values if categorization fails
+                vuln["cwe_category"] = "UNKNOWN"
+                vuln["cwe_explanation"] = ""
+                vuln["cause"] = ""
+                vuln["impact"] = ""
+                vuln["description_normalized"] = description
+                vuln["explanation"] = ""
+                print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
                 
-                if args.source == 'gemini':
-                    result = await categorizer_obj.categorize_vulnerability_gemini(description)
-                elif args.source == 'chatgpt':
-                    result = await categorizer_obj.categorize_vulnerability_gpt(description)
-                elif args.source == 'llama':
-                    result = await categorizer_obj.categorize_vulnerability_llama(description)
-                elif args.source == 'combined':
-                    result = await categorizer_obj.categorize_vulnerability_combined(description)
-                
-                if result and len(result) > 0:
-                    categorization = result[0]  # Get first result dictionary
-                    vuln["cwe_category"] = categorization.get("cwe_category", "UNKNOWN")
-                    vuln["cwe_explanation"] = categorization.get("explanation", "")
-                    vuln["cause"] = categorization.get("cause", "")
-                    vuln["impact"] = categorization.get("impact", "")
-                    vuln["description_normalized"] = description
-                    vuln["explanation"] = categorization.get("explanation", "")
-                else:
-                    # Fallback values if categorization fails
-                    vuln["cwe_category"] = "UNKNOWN"
-                    vuln["cwe_explanation"] = ""
-                    vuln["cause"] = ""
-                    vuln["impact"] = ""
-                    vuln["description_normalized"] = description
-                    vuln["explanation"] = ""
-                    print(f"Warning: No categorization result for vulnerability ID {vuln.get('id')}")
-                    
-                categorized_data.append(vuln)
-        
-        print(f"Total categorized vulnerabilities: {len(categorized_data)}")
-    else:
-        categorized_data = normalized_data
+            categorized_data[provider].append(vuln)
+    
+        print(f"Total categorized vulnerabilities for {provider}: {len(categorized_data[provider])}")
         # Load exporters
-    exporters = load_exporters(config, args.output_file)
-    if args.export_format not in exporters:
-        print(f"Unsupported export format: {args.export_format}")
-        return
+        
+        output = provider + '_dataset/' + args.output_file
+        exporters = load_exporters(config, output)
+        if args.export_format not in exporters:
+            print(f"Unsupported export format: {args.export_format}")
+            return
 
-    print("Exporting data to", args.output_file)
-    exporter = exporters[args.export_format]
-    exporter.export(categorized_data)
+        print(f"Exporting data to {output}")
+        exporter = exporters[args.export_format]
+        exporter.export(categorized_data[provider])
 
-        # End measuring time and resources
+    # End measuring time and resources
     end_time = time.time()
     end_datetime = datetime.now()
     print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
