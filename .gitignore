@@ -125,3 +125,5 @@ dmypy.json
 
 !search_params/*.txt
 
+*.yaml
+
