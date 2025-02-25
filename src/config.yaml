@@ -1,7 +1,7 @@
 data_sources:
   - name: "nvd"
   - name: "vulners"
-    api_key: "VULNERS_KEY"
+    api_key:"VULNERS_API_KEY"
 
 normalizers:
   - basic
@@ -14,23 +14,27 @@ models_to_evaluate:
   - model: "gpt-4o-mini"
     type: "api"
     provider: "openai"
-    api_key: "CHATGPT_KEY"
+    api_key: "OPENAI_API_KEY"
     site: "https://api.openai.com/v1"
+
   - model: "llama3.1-70b"
     type: "api"
     provider: "meta"
     api_key: "LLAMA_KEY"
     site: "https://api.llama-api.com"
+
   - model: "deepseek-r1"
     type: "api"
     provider: "deepseek"
     api_key: "LLAMA_KEY"
     site: "https://api.llama-api.com"
+
   - model: "gemini-1.5-flash"
     type: "api"
     provider: "google"
-    api_key: "GEMINI_KEY"
+    api_key: "GEMINI_API_KEY"
     site: "https://generativelanguage.googleapis.com/v1beta/openai/"
+
   - model: "mistral-7b-instruct"
     type: "api"
     provider: "mytral"
