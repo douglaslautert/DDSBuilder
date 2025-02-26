@@ -20,9 +20,7 @@ class NvdExtractor(DataSourceBase):
         base_url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
         params = {'keywordSearch': keyword}
         headers = {'User-Agent': 'Mozilla/5.0'}
-        print(f"\nSending request to NVD API with keyword: {keyword}")
         response = requests.get(base_url, params=params, headers=headers)
-        print(f"NVD API response status code: {response.status_code}")
         if response.status_code == 403:
             print(f"Rate limit exceeded or access forbidden for keyword: {keyword}")
             await asyncio.sleep(5)

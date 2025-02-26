@@ -199,7 +199,7 @@ async def main():
         
         for vuln in normalized_data:
             if not vuln.get("id"):
-                print(f"Warning: Skipping vulnerability without ID: {vuln}")
+                print(f"Warning: Skipping vulnerability without ID")
                 continue
             description = vuln.get("description", "")
             result = None
