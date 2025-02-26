@@ -267,9 +267,18 @@ class Categorizer:
         
         if(type == 'local'):
             try:
-                config = ast.literal_eval(config)
-                tokenizer = AutoTokenizer.from_pretrained(model,**config)
-                model = AutoModelForCausalLM.from_pretrained(model)
+                config_string = config
+
+                # Dividir a string em chave e valor
+                key, value = config_string.split('=')
+
+                # Converter o valor para o tipo apropriado (neste caso, bool)
+                value = value == 'True'
+
+                # Criar um dicionário com a chave e o valor
+                config_dict = {key: value}
+                tokenizer = AutoTokenizer.from_pretrained(model)
+                model = AutoModelForCausalLM.from_pretrained(model,**config_dict)
                 pipe = pipeline("text-generation", model= model, tokenizer = tokenizer)
                 result = _extract_category(pipe(prompt)[0]["generated_text"])
                 return [result]
