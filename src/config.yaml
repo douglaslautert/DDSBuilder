@@ -9,11 +9,14 @@ exporters:
   - csv
   - json
 
+
+
 models_to_evaluate:
+  - hugginface_api_key: "hugginface_API_KEY"
   - model: "gpt-4o-mini"
     type: "api"
     provider: "openai"
-    api_key: "CHATGPT_KEY"
+    api_key: "CHAT_GPT_KEY"
     site: "https://api.openai.com/v1"
   - model: "llama3.1-70b"
     type: "api"
@@ -35,3 +38,28 @@ models_to_evaluate:
     provider: "mytral"
     api_key: "LLAMA_KEY"
     site: "https://api.llama-api.com"
+  - model: "llama3.1-70b"
+    type: "api"
+    provider: "llama"
+    api_key: "LLAMA_KEY_2"
+    site: "https://api.cloud.llamaindex.ai"
+  - model: "llama-3.2-3b-instruct"
+    type: "api"
+    provider: "llama2"
+    site: "http://localhost:1234/v1"
+    api_key: "lm-studio"
+  - model: "distilgpt2"
+    type: "local"
+    provider: "distilgpt2"
+    config : ""
+  - model: "gpt2"
+    type: "local"
+    provider: "gpt2"
+    config: ""
+  - model: "bert-base-uncased"
+    type: "local"
+    provider: "bert-base-uncased"
+    config: "{'is_decoder':True}"
+    
+    
+    

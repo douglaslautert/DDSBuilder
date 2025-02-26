@@ -5,8 +5,8 @@ import google.generativeai as genai
 import os
 import asyncio
 from openai import OpenAI, AsyncOpenAI
-
-
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+import ast
 # Safety configuration for Gemini
 safe = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -226,46 +226,61 @@ class Categorizer:
         api_key = os.getenv('PROVIDER_API_KEY')
         base_url = os.getenv('PROVIDER_API_URL')
         model = os.getenv('PROVIDER_API_MODEL')
-        
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        type = os.getenv("PROVIDER_TYPE")
+        config = os.getenv("PROVIDER_CONFIG")
+                  
         prompt = f"""
-        You are a security expert.
-        Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
-        Provide the CWE ID (only the CWE ID of the vulnerability), a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
+            You are a security expert.
+            Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
+            Provide the CWE ID (only the CWE ID of the vulnerability), a brief explanation, the vendor name, the cause of the vulnerability, and its impact.
 
-        Description:
-        ```
-        {description}
-        ```
-        Rules for returning the vendor:
-        - Return only the official/primary vendor name
-        - For open source projects, return the organization maintaining it
-        - If multiple vendors are mentioned, return the one responsible for the vulnerable component
-        - Normalize variations of the same vendor name
-        - If no clear vendor is found, return "Unknown"
-        - Use official vendor names where possible and keep the same name for vulnerabilities of the same vendor
+            Description:
+            ```
+            {description}
+            ```
+            Rules for returning the vendor:
+            - Return only the official/primary vendor name
+            - For open source projects, return the organization maintaining it
+            - If multiple vendors are mentioned, return the one responsible for the vulnerable component
+            - Normalize variations of the same vendor name
+            - If no clear vendor is found, return "Unknown"
+            - Use official vendor names where possible and keep the same name for vulnerabilities of the same vendor
 
-        Output:
-        ```json
-        {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
-        ```
-        """
-        try:
-            completion = await client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            result = _extract_category(completion.choices[0].message.content)
-            return [result]
-        except Exception as e:
-            print(f"Error calling ChatGPT API: {e}")
-            return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
-
-
+            Output:
+            ```json
+            {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
+            ```
+            """
+            
+        if(type == 'api'):
+            client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+            try:
+                completion = await client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                result = _extract_category(completion.choices[0].message.content)
+                return [result]
+            except Exception as e:
+                print(f"Error calling API: {e}")
+                return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
+        
+        if(type == 'local'):
+            try:
+                config = ast.literal_eval(config)
+                tokenizer = AutoTokenizer.from_pretrained(model,**config)
+                model = AutoModelForCausalLM.from_pretrained(model)
+                pipe = pipeline("text-generation", model= model, tokenizer = tokenizer)
+                result = _extract_category(pipe(prompt)[0]["generated_text"])
+                return [result]
+            except Exception as e:
+                print(f"Error calling local: {e}")
+                return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
+        
     def categorize_vulnerability_none(self, description):
         return [{"cwe_category": "UNKNOWN", "explanation": "No categorization available",
                 "vendor": "Unknown", "cause": "", "impact": ""}]
-    
+
     def vote(self, responses, field):
         """
         Implement weighted voting for a specific field across AI responses.

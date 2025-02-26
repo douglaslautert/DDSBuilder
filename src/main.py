@@ -10,7 +10,7 @@ from data_sources.load_data_source import load_data_sources
 from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
 from output.load_exporter import load_exporters
-
+from huggingface_hub import login, HfApi
 
 def get_provider(provider_name):
     for model_info in MODELS_TO_EVALUATE:
@@ -18,7 +18,9 @@ def get_provider(provider_name):
             return {
                 "model": model_info.get("model"),
                 "api_key": model_info.get("api_key"),
-                "site": model_info.get("site")  # Default site if not provided
+                "site": model_info.get("site"),
+                "type": model_info.get("type"),
+                "config": model_info.get("config")
             }
     return None
 
@@ -75,6 +77,16 @@ async def main():
 
     # Load configuration to dynamically add data source choices
     config = load_config()
+
+    try:
+        api = HfApi()
+        user = api.whoami()
+        print(f"Logged in as {user['name']}")
+    except Exception as e:
+        print("You are not logged in to Hugging Face. Please log in.")
+        # Substitua 'SEU_TOKEN_AQUI' pelo seu token de acesso do Hugging Face
+        login(token=config['models_to_evaluate']['hugginface_api_key'])
+
 
     data_source_choices = config['data_sources'] + ['both']
     export_format_choices = config['exporters']
@@ -182,6 +194,10 @@ async def main():
                     os.environ["PROVIDER_API_URL"] = provider_type["site"]
                 if provider_type["model"]:
                     os.environ["PROVIDER_API_MODEL"] = provider_type["model"]
+                if provider_type["type"]:
+                    os.environ["PROVIDER_TYPE"] = provider_type["type"]
+                if provider_type["config"]:
+                    os.environ["PROVIDER_CONFIG"] = provider_type["config"]
             
             for vuln in normalized_data:
                 description = vuln.get("description", "")
