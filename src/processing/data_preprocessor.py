@@ -2,7 +2,7 @@ class DataPreprocessor:
     def __init__(self, normalizers):
         self.normalizers = normalizers
 
-    def preprocess_data(self, vulnerabilities, search_params, source):
+    def preprocess_data(self, vulnerabilities, search_params, source, source_name):
         """Normalize vulnerability data and handle duplicates with improved tracking."""
         normalized = []
         seen_ids = set()
@@ -15,6 +15,9 @@ class DataPreprocessor:
                 norm = normalizer.normalize_data(vuln, source)
                 if norm:
                     vuln_id = norm.get('id')
+                    if not vuln_id:
+                        print(f"Warning: Skipping vulnerability without ID")
+                        continue
                     cve = norm.get('id')  # Assuming 'id' contains the CVE identifier
 
                     # Check for duplicates
@@ -30,13 +33,9 @@ class DataPreprocessor:
                     break
 
         # Print detailed statistics
-        print("\nDuplication Statistics:")
-        print(f"Total vulnerabilities found: {len(vulnerabilities)}")
-        print(f"Unique vulnerabilities after normalization: {len(normalized)}")
-        print(f"Duplicates removed: {len(duplicates)}")
-
-        if duplicates:
-            for dup in duplicates:
-                print(f"Duplicate Details: - {dup['id']} from {dup['source']}: {dup['description']}")
+        print(f"\nDuplication Statistics for {source_name}:")
+        print(f"Total vulnerabilities found for {source_name}: {len(vulnerabilities)}")
+        print(f"Unique vulnerabilities for {source_name} after normalization: {len(normalized)}")
+        print(f"Duplicates removed for {source_name}: {len(duplicates)}")
 
         return normalized
