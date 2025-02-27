@@ -1,7 +1,7 @@
 data_sources:
   - name: "nvd"
   - name: "vulners"
-    api_key:"VULNERS_API_KEY"
+    api_key: "VULNERS_API_KEY"
 
 normalizers:
   - basic
