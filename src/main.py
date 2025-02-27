@@ -10,7 +10,7 @@ from data_sources.load_data_source import load_data_sources
 from processing.load_normalizer import load_normalizers
 from categorization.categorizer import Categorizer
 from output.load_exporter import load_exporters
-
+from huggingface_hub import login, HfApi
 
 def get_provider(provider_name):
     for model_info in MODELS_TO_EVALUATE:
@@ -18,7 +18,9 @@ def get_provider(provider_name):
             return {
                 "model": model_info.get("model"),
                 "api_key": model_info.get("api_key"),
-                "site": model_info.get("site")  # Default site if not provided
+                "site": model_info.get("site"),
+                "type": model_info.get("type"),
+                "config": model_info.get("config")
             }
     return None
 
@@ -86,7 +88,21 @@ async def main():
     # Load configuration to dynamically add data source choices
     config = load_config()
 
+
+    try:
+        api = HfApi()
+        user = api.whoami()
+        print(f"Logged in as {user['name']}")
+    except Exception as e:
+        print("You are not logged in to Hugging Face. Please log in.")
+        # Substitua 'SEU_TOKEN_AQUI' pelo seu token de acesso do Hugging Face
+        login(token=config['models_to_evaluate'].get('hugginface_api_key'))
+
+
+    data_source_choices = config['data_sources'] + ['both']
+
     data_source_choices = [source['name'] for source in config['data_sources']] + ['both']
+    
     export_format_choices = config['exporters']
 
     parser.add_argument('--source', default="provider", choices=['provider', 'none'],
@@ -185,18 +201,22 @@ async def main():
 
     categorized_data = {provider: [] for provider in args.provider}
     categorizer_obj = Categorizer()
-
+    
     for provider in args.provider:
         provider_type = get_provider(provider)
         print(f"Vulnerability categorizing {provider}...")
         if provider_type:
-            if provider_type["api_key"]:
-                os.environ["PROVIDER_API_KEY"] = provider_type["api_key"]
-            if provider_type["site"]:
-                os.environ["PROVIDER_API_URL"] = provider_type["site"]
-            if provider_type["model"]:
-                os.environ["PROVIDER_API_MODEL"] = provider_type["model"]
-        
+          if provider_type["api_key"]:
+            os.environ["PROVIDER_API_KEY"] = provider_type["api_key"]
+          if provider_type["site"]:
+            os.environ["PROVIDER_API_URL"] = provider_type["site"]
+          if provider_type["model"]:
+            os.environ["PROVIDER_API_MODEL"] = provider_type["model"]
+          if provider_type["type"]:
+            os.environ["PROVIDER_TYPE"] = provider_type["type"]
+          if provider_type["config"]:
+            os.environ["PROVIDER_CONFIG"] = provider_type["config"]
+            
         for vuln in normalized_data:
             if not vuln.get("id"):
                 print(f"Warning: Skipping vulnerability without ID")
@@ -232,26 +252,25 @@ async def main():
     
         print(f"Total categorized vulnerabilities for {provider}: {len(categorized_data[provider])}")
         # Load exporters
-        
+
         output = provider + '_dataset/' + args.output_file
         exporters = load_exporters(config, output)
         if args.export_format not in exporters:
-            print(f"Unsupported export format: {args.export_format}")
-            return
+           print(f"Unsupported export format: {args.export_format}")
+           return
 
         print(f"Exporting data to {output}")
         exporter = exporters[args.export_format]
         exporter.export(categorized_data[provider])
 
-    # End measuring time and resources
-    end_time = time.time()
-    end_datetime = datetime.now()
-    print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
-    end_memory = process.memory_info().rss
-
-    print("Process completed.")
-    print(f"Total execution time: {end_time - start_time:.2f} seconds")
-    print(f"Memory used: {(end_memory - start_memory) / (1024 * 1024):.2f} MB")
+        # End measuring time and resources
+        end_time = time.time()
+        end_datetime = datetime.now()
+        print(f"Program ended at: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+        end_memory = process.memory_info().rss
+        print("Process completed.")
+        print(f"Total execution time: {end_time - start_time:.2f} seconds")
+        print(f"Memory used: {(end_memory - start_memory) / (1024 * 1024):.2f} MB")
 
 
 if __name__ == "__main__":
