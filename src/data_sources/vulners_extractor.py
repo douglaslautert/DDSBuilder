@@ -7,7 +7,8 @@ class VulnersExtractor(DataSourceBase):
     async def collect_data(self, search_params):
         vulnerabilities = []
         for param in search_params:
-            vulners_response = await self.get_vulners_data(param)  # Adicione await aqui
+            print(f"Collecting VULNERS data for search parameter: {param}")
+            vulners_response = await self.get_vulners_data(param)
             if vulners_response and 'data' in vulners_response and 'search' in vulners_response['data']:
                 vulners_vulns = vulners_response['data']['search']
                 for vuln in vulners_vulns:
