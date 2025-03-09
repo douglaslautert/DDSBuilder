@@ -301,7 +301,7 @@ class Categorizer:
                 else:
                     model = AutoModelForCausalLM.from_pretrained(model)
                 pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=400,temperature=0.1, device='cpu')
-                result = extract_vulnerability_info(pipe(messages,max_new_tokens=400,num_return_sequences=1,do_sample=True)[0]['generated_text'])
+                result = str(pipe(messages,max_new_tokens=400,num_return_sequences=1,do_sample=True)[0]['generated_text'])
                 print(result)
                 return [result]
             except Exception as e:
