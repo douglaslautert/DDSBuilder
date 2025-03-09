@@ -268,8 +268,8 @@ class Categorizer:
         if(type == 'local'):
             try:
                 tokenizer = AutoTokenizer.from_pretrained(model)
-                
-                if(config):
+                                    
+                if(config is not None):
                     config_string = config
                     # Dividir a string em chave e valor
                     key, value = config_string.split('=')
@@ -278,8 +278,8 @@ class Categorizer:
                     model = AutoModelForCausalLM.from_pretrained(model,**config_dict)
                 else:
                     model = AutoModelForCausalLM.from_pretrained(model)
-                pipe = pipeline("text-generation", model= model, tokenizer = tokenizer, max_new_tokens=100)
-                result = _extract_category(pipe(prompt)[0]["generated_text"])
+                pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=400,temperature=0.1,do_sample=False, device='cpu')
+                result = _extract_category(pipe(prompt,max_new_tokens=200,num_return_sequences=1)[0]["generated_text"])
                 return [result]
             except Exception as e:
                 print(f"Error calling local: {e}")
