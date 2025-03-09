@@ -15,17 +15,39 @@ safe = [
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
 
+def extract_vulnerability_info(description):
+    cwe_pattern = r'"cwe_category":\s*"CWE-\d+"'
+    explanation_pattern = r'"explanation":\s*".*?"'
+    vendor_pattern = r'"vendor":\s*".*?"'
+    cause_pattern = r'"cause":\s*".*?"'
+    impact_pattern = r'"impact":\s*".*?"'
+
+    cwe_match = re.search(cwe_pattern, description)
+    explanation_match = re.search(explanation_pattern, description)
+    vendor_match = re.search(vendor_pattern, description)
+    cause_match = re.search(cause_pattern, description)
+    impact_match = re.search(impact_pattern, description)
+
+    return {
+        "cwe_category": cwe_match.group(0).split(":")[1].strip().strip('"') if cwe_match else "Unknown",
+        "explanation": explanation_match.group(0).split(":")[1].strip().strip('"') if explanation_match else "Unknown",
+        "vendor": vendor_match.group(0).split(":")[1].strip().strip('"') if vendor_match else "Unknown",
+        "cause": cause_match.group(0).split(":")[1].strip().strip('"') if cause_match else "Unknown",
+        "impact": impact_match.group(0).split(":")[1].strip().strip('"') if impact_match else "Unknown"
+        }
+
+
 def _extract_category(text_part):
     """Extract JSON from AI response text."""
     # Remove any non-JSON text after the JSON block
     text_part = text_part.split('\n\nExplanation:')[0].strip()
-    
+
     # Try to extract JSON with or without backticks
     patterns = [
         r'```json\s*(\{[\s\S]*?\})\s*```',  # JSON with backticks
         r'\{[\s\S]*?\}'                      # Raw JSON
     ]
-    
+
     for pattern in patterns:
         matches = re.finditer(pattern, text_part, re.DOTALL)
         for match in matches:
@@ -33,7 +55,7 @@ def _extract_category(text_part):
                 json_str = match.group(1) if '```' in pattern else match.group(0)
                 json_str = json_str.strip()
                 result = json.loads(json_str)
-                
+
                 # Return structured result if all required fields are present
                 if all(k in result for k in ["cwe_category", "explanation", "vendor", "cause", "impact"]):
                     return {
@@ -45,7 +67,7 @@ def _extract_category(text_part):
                     }
             except json.JSONDecodeError:
                 continue
-    
+
     return {
         "cwe_category": "UNKNOWN",
         "explanation": "",
@@ -187,7 +209,7 @@ class Categorizer:
         api_key = os.getenv('DEFAULT_API_KEY')
         base_url = os.getenv('DEFAULT_API_URL')
         model = os.getenv('DEFAULT_API_MODEL')
-        
+
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         prompt = f"""
         You are a security expert.
@@ -228,7 +250,7 @@ class Categorizer:
         model = os.getenv('PROVIDER_API_MODEL')
         type = os.getenv("PROVIDER_TYPE")
         config = os.getenv("PROVIDER_CONFIG")
-                  
+
         prompt = f"""
             You are a security expert.
             Categorize the following vulnerability description into a CWE category, identify the vendor, and extract the cause and impact of the vulnerability.
@@ -251,7 +273,7 @@ class Categorizer:
             {{"cwe_category": "CWE-ID", "explanation": "Brief Explanation of the CWE", "vendor": "Vendor Name", "cause": "Cause of the Vulnerability", "impact": "Impact of the Vulnerability"}}
             ```
             """
-            
+
         if(type == 'api'):
             client = AsyncOpenAI(api_key=api_key, base_url=base_url)
             try:
@@ -264,11 +286,10 @@ class Categorizer:
             except Exception as e:
                 print(f"Error calling API: {e}")
                 return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
-        
+
         if(type == 'local'):
             try:
                 tokenizer = AutoTokenizer.from_pretrained(model)
-                                    
                 if(config is not None):
                     config_string = config
                     # Dividir a string em chave e valor
@@ -278,13 +299,14 @@ class Categorizer:
                     model = AutoModelForCausalLM.from_pretrained(model,**config_dict)
                 else:
                     model = AutoModelForCausalLM.from_pretrained(model)
-                pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=400,temperature=0.1,do_sample=False, device='cpu')
-                result = _extract_category(pipe(prompt,max_new_tokens=200,num_return_sequences=1)[0]["generated_text"])
+                pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=400,temperature=0.1, device='cpu')
+                result = extract_vulnerability_info(pipe(prompt,max_new_tokens=400,num_return_sequences=1,do_sample=True)[0]['generated_text'])
+                print(result)
                 return [result]
             except Exception as e:
                 print(f"Error calling local: {e}")
                 return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
-        
+
     def categorize_vulnerability_none(self, description):
         return [{"cwe_category": "UNKNOWN", "explanation": "No categorization available",
                 "vendor": "Unknown", "cause": "", "impact": ""}]
