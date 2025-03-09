@@ -305,14 +305,14 @@ class Categorizer:
                     model,
                     torch_dtype=torch.float16,
                     device_map="cpu",
-                    attn_implementation="flash_attention_2",
+                    attn_implementation="flash_attention_2",low_cpu_mem_usage=True,
                     **config_dict)
                 else:
                     model = AutoModelForCausalLM.from_pretrained(
                     model,
                     torch_dtype=torch.float16,
                     device_map="auto",
-                    attn_implementation="flash_attention_2")
+                    attn_implementation="flash_attention_2",low_cpu_mem_usage=True)
                 input_ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors='pt').to("cuda")
                 generated_ids = model.generate(input_ids, max_new_tokens=2500, temperature=0.8, repetition_penalty=1.1, do_sample=True, eos_token_id=tokenizer.eos_token_id)
                 response = tokenizer.decode(generated_ids[0], skip_special_tokens=True, clean_up_tokenization_space=True)
