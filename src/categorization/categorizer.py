@@ -7,6 +7,8 @@ import asyncio
 from openai import OpenAI, AsyncOpenAI
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import ast
+import torch
+
 # Safety configuration for Gemini
 safe = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -290,18 +292,32 @@ class Categorizer:
         if(type == 'local'):
             try:
                 messages=[{"role": "user", "content": prompt}]
+                
                 tokenizer = AutoTokenizer.from_pretrained(model)
+
                 if(config is not None):
                     config_string = config
                     # Dividir a string em chave e valor
                     key, value = config_string.split('=')
                     # Criar um dicionário com a chave e o valor
                     config_dict = {key: value}
-                    model = AutoModelForCausalLM.from_pretrained(model,**config_dict)
+                    model = AutoModelForCausalLM.from_pretrained(
+                    model,
+                    torch_dtype=torch.float16,
+                    device_map="cpu",
+                    attn_implementation="flash_attention_2",
+                    **config_dict)
                 else:
-                    model = AutoModelForCausalLM.from_pretrained(model)
-                pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_new_tokens=400,temperature=0.1, device='cpu')
-                result = str(pipe(messages,max_new_tokens=400,num_return_sequences=1,do_sample=True)[0]['generated_text'])
+                    model = AutoModelForCausalLM.from_pretrained(
+                    model,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    attn_implementation="flash_attention_2")
+                input_ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors='pt').to("cuda")
+                generated_ids = model.generate(input_ids, max_new_tokens=2500, temperature=0.8, repetition_penalty=1.1, do_sample=True, eos_token_id=tokenizer.eos_token_id)
+                response = tokenizer.decode(generated_ids[0], skip_special_tokens=True, clean_up_tokenization_space=True)
+                result = _extract_category(response) 
+                print(f"Response: {response}")
                 print(result)
                 return [result]
             except Exception as e:
