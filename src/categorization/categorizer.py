@@ -290,8 +290,9 @@ class Categorizer:
 
         if(type == 'local'):
             try:
-                
-                model_local = AutoModelForCausalLM.from_pretrained(model, trust_remote_code=True)
+
+                messages = [{"role": "user", "content": prompt}]
+                tokenizer = AutoTokenizer.from_pretrained(model)
 
                 if(config is not None):
                     config_string = config
@@ -299,19 +300,31 @@ class Categorizer:
                     key, value = config_string.split('=')
                     # Criar um dicionário com a chave e o valor
                     config_dict = {key: value}
-                    model_local = AutoModelForCausalLM.from_pretrained(model,**config)
+                    model_local = AutoModelForCausalLM.from_pretrained(
+                    model,
+                    device_map="cpu",
+                    torch_dtype="auto",
+                    trust_remote_code=True,
+                    **config)
                 else:
-                    model_local = AutoModelForCausalLM.from_pretrained(model)
-
-              
-                # Baixe o modelo e o tokenizer
-                tokenizer = AutoTokenizer.from_pretrained(model)
-
-                inputs = tokenizer.encode(prompt, return_tensors="pt")
-                outputs = model.generate(inputs, max_length=100, num_return_sequences=1)
-                texto_gerado = tokenizer.decode(outputs[0], skip_special_tokens=True)
-                print(texto_gerado)
-                return False
+                    model_local = AutoModelForCausalLM.from_pretrained(
+                        model,
+                        device_map="cpu",
+                        torch_dtype="auto",
+                        trust_remote_code=True)
+                pipe = pipeline(
+                "text-generation",
+                model=model_local,
+                tokenizer=tokenizer)
+                generation_args = {
+                        "max_new_tokens": 500,
+                        "return_full_text": False,
+                        "temperature": 0.0,
+                        "do_sample": False,
+                }
+                output = pipe(messages, **generation_args)
+                print(output[0]['generated_text'])
+                return 
 
             except Exception as e:
                 print(f"Error calling local: {e}")
