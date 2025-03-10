@@ -291,45 +291,40 @@ class Categorizer:
         if(type == 'local'):
             try:
 
-                messages = [{"role": "user", "content": prompt}]
                 tokenizer = AutoTokenizer.from_pretrained(model)
 
-                if(config is not None):
-                    config_string = config
-                    # Dividir a string em chave e valor
-                    key, value = config_string.split('=')
-                    # Criar um dicionário com a chave e o valor
+                if config is not None:
+                    # Split the config string into key and value
+                    key, value = config.split('=')
+                    # Create a dictionary with the key and value
                     config_dict = {key: value}
                     model_local = AutoModelForCausalLM.from_pretrained(
-                    model,
-                    device_map="cpu",
-                    torch_dtype="auto",
-                    trust_remote_code=True,
-                    **config_dict)
+                        model,
+                        device_map="cpu",
+                        torch_dtype="auto",
+                        trust_remote_code=True,
+                        **config_dict
+                    )
                 else:
                     model_local = AutoModelForCausalLM.from_pretrained(
                         model,
                         device_map="cpu",
                         torch_dtype="auto",
-                        trust_remote_code=True)
-                pipe = pipeline(
-                "text-generation",
-                model=model_local,
-                tokenizer=tokenizer)
-                generation_args = {
-                        "max_new_tokens": 500,
-                        "return_full_text": False,
-                        "temperature": 0.0,
-                        "do_sample": False,
-                }
-                output = pipe(messages, **generation_args)
-                print(output[0]['generated_text'])
-                return 
+                        trust_remote_code=True
+                    )
 
+                inputs = tokenizer(prompt, return_tensors='pt')
+                outputs = model_local.generate(**inputs, max_new_tokens=300)  # Use max_new_tokens instead of max_length
+                resultado = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+                # Remove the prompt from the result
+                result = _extract_category(resultado[len(prompt):])
+                return [result]
+                
             except Exception as e:
                 print(f"Error calling local: {e}")
                 return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
-
+    
     def categorize_vulnerability_none(self, description):
         return [{"cwe_category": "UNKNOWN", "explanation": "No categorization available",
                 "vendor": "Unknown", "cause": "", "impact": ""}]
