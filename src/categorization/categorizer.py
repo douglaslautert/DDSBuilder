@@ -8,7 +8,6 @@ from openai import OpenAI, AsyncOpenAI
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import ast
 import torch
-
 # Safety configuration for Gemini
 safe = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -291,9 +290,8 @@ class Categorizer:
 
         if(type == 'local'):
             try:
-                messages=[{"role": "user", "content": prompt}]
                 
-                tokenizer = AutoTokenizer.from_pretrained(model)
+                model_local = AutoModelForCausalLM.from_pretrained(model, trust_remote_code=True)
 
                 if(config is not None):
                     config_string = config
@@ -301,25 +299,20 @@ class Categorizer:
                     key, value = config_string.split('=')
                     # Criar um dicionário com a chave e o valor
                     config_dict = {key: value}
-                    model = AutoModelForCausalLM.from_pretrained(
-                    model,
-                    torch_dtype=torch.float16,
-                    device_map="cpu",
-                    attn_implementation="flash_attention_2",low_cpu_mem_usage=True,
-                    **config_dict)
+                    model_local = AutoModelForCausalLM.from_pretrained(model,**config)
                 else:
-                    model = AutoModelForCausalLM.from_pretrained(
-                    model,
-                    torch_dtype=torch.float16,
-                    device_map="auto",
-                    attn_implementation="flash_attention_2",low_cpu_mem_usage=True)
-                input_ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors='pt').to("cuda")
-                generated_ids = model.generate(input_ids, max_new_tokens=2500, temperature=0.8, repetition_penalty=1.1, do_sample=True, eos_token_id=tokenizer.eos_token_id)
-                response = tokenizer.decode(generated_ids[0], skip_special_tokens=True, clean_up_tokenization_space=True)
-                result = _extract_category(response) 
-                print(f"Response: {response}")
-                print(result)
-                return [result]
+                    model_local = AutoModelForCausalLM.from_pretrained(model)
+
+              
+                # Baixe o modelo e o tokenizer
+                tokenizer = AutoTokenizer.from_pretrained(model)
+
+                inputs = tokenizer.encode(prompt, return_tensors="pt")
+                outputs = model.generate(inputs, max_length=100, num_return_sequences=1)
+                texto_gerado = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                print(texto_gerado)
+                return False
+
             except Exception as e:
                 print(f"Error calling local: {e}")
                 return [{"cwe_category": "UNKNOWN", "explanation": str(e), "vendor": "Unknown", "cause": "", "impact": ""}]
