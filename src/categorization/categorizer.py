@@ -305,7 +305,7 @@ class Categorizer:
                     device_map="cpu",
                     torch_dtype="auto",
                     trust_remote_code=True,
-                    **config)
+                    **config_dict)
                 else:
                     model_local = AutoModelForCausalLM.from_pretrained(
                         model,
