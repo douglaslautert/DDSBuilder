@@ -107,12 +107,7 @@ async def main():
 
     parser.add_argument('--data-source', choices=data_source_choices, nargs='+', required=True,
                         help="Select the data source(s) for vulnerabilities")  
-    parser.add_argument('--gemini-key', help="API key for Gemini")
-    parser.add_argument('--chatgpt-key', help="API key for ChatGPT")
-    parser.add_argument('--llama-key', help="API key for Llama")
     parser.add_argument('--provider', default=["none"], nargs='*', help="Select if you want to use a LLM (IA) provider or not ")  # Add new argument for Default LLM
-    parser.add_argument('--vulners-key', help="API key for Vulners")
-    parser.add_argument('--new-source-key', help="API key for New Source")  # Add new source key argument
     parser.add_argument('--export-format', choices=export_format_choices, required=True, help="Export format")
     parser.add_argument('--output-file', default="dataset/dataset_vulnerabilities_AI.csv", help="Output file name")
     parser.add_argument('--search-params', nargs='*', help="Search parameters for vulnerabilities")
