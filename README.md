@@ -105,6 +105,7 @@ Este README.md está organizado nas seguintes seções:
       pip install psutil
       pip install requests
       pip install huggingface_hub
+      pip install torch
     ```
 
 ## Configuração
