@@ -429,21 +429,26 @@ O código-fonte está organizado da seguinte forma:
 - `categorization/`: Contém os módulos relacionados à categorização de vulnerabilidades com IA.
   - `categorizer.py`: Implementa a classe `Categorizer`, responsável por interagir com as APIs dos LLMs e combinar os resultados.
   - `__init__.py`
-  - `voting.py`: Implementa um sistema de votação.
 - `data_sources/`: Contém os módulos para extrair dados de diferentes fontes.
+  - `data_source.py`: Funções que implementam  a class DataSourceBase
   - `nvd_extractor.py`: Funções para acessar a API do NVD.
   - `vulners_extractor.py`: Funções para acessar a API do Vulners.
+  - `load_data_source.py`: Funções para acessar a API por definição.
   - `github_extractor.py`: (Atualmente não utilizado)
   - `__init__.py`
 - `output/`: Contém os módulos para exportar os dados processados.
   - `csv_exporter.py`: Funções para exportar dados para CSV.
+  - `json_exporter.py`: Funções para exportar dados para JSON.
+  - `data_exporter.py`: Implementa a class DataExporterBase.
+  - `load_exporters.py`: Implementa o carregamento dos diferentes exportadores.
   - `__init__.py`
   - `json_exporter.py`: Funções para exportar dados para JSON.
 - `processing/`: Contém módulos para processamento e normalização dos dados.
-  - `filter.py`: Funções para filtrar as vulnerabilidades.
   - `normalizer.py`: Funções para normalizar os dados de diferentes fontes.
-  - `load_data_source.py`:Carrega as fontes de dados.
-  - `data_preprocessor.py`: Orquestra o pré-processamento dos dados. -`__init__.py`
+  - `basic_normalizer.py`: Funções para normalizar os dados básico implementados pela class BasicNormalizer.
+  - `data_preprocessor.py`: Orquestra o pré-processamento dos dados.
+  - `normalizer.py`: Contém a class NormalizerBase implementa a função normalize_data
+  -`__init__.py`
 - `src/`: Contém o script principal.
   - `main.py`: Ponto de entrada principal do programa.
 - `requirements.txt`: Lista as dependências do projeto.
@@ -507,6 +512,7 @@ Para adicionar uma nova fonte de dados, siga os seguintes passos:
     data_sources:
       - nvd
       - vulners
+        - api_key: "API_KEY_VULNERS"
       - mysource
 
       normalizers:
